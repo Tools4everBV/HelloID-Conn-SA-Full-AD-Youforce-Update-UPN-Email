@@ -40,6 +40,7 @@ The PowerShell script "createform.ps1" contains a complete PowerShell script usi
 ### Getting started
 Please follow the documentation steps on [HelloID Docs](https://docs.helloid.com/en/github-resources/service-automation-github-resources.html) in order to set up and run the All-in-one Powershell Script in your own environment.
 
+This form uses the IAM-user endpoint, with the scope Youforce-IAM:Write_Basic
  
 ## Post-setup configuration
 After the all-in-one PowerShell script has run and created all the required resources. The following items need to be configured according to your own environment
