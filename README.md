@@ -44,8 +44,6 @@ This form uses the IAM-user endpoint, with the scope Youforce-IAM:Write_Basic
 
 ## Prerequisites
 
-- [ ] _HelloID_ Provisioning agent (cloud or on-prem).
-- [ ] _HelloID_ environment.
 - [ ] Authorized Visma Developers account in order to request and receive the API credentials in the [Visma Developer portal](https://oauth.developers.visma.com). Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
 - [ ] ClientID, ClientSecret and tenantID to authenticate with the IAM API of Raet Beaufort. Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
 - [ ] Dependent account data in HelloID.
