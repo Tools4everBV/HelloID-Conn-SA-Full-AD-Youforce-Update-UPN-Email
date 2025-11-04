@@ -41,7 +41,24 @@ The PowerShell script "createform.ps1" contains a complete PowerShell script usi
 Please follow the documentation steps on [HelloID Docs](https://docs.helloid.com/en/github-resources/service-automation-github-resources.html) in order to set up and run the All-in-one Powershell Script in your own environment.
 
 This form uses the IAM-user endpoint, with the scope Youforce-IAM:Write_Basic
- 
+
+## Prerequisites
+
+- [ ] _HelloID_ Provisioning agent (cloud or on-prem).
+- [ ] _HelloID_ environment.
+- [ ] Authorized Visma Developers account in order to request and receive the API credentials in the [Visma Developer portal](https://oauth.developers.visma.com). Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
+- [ ] ClientID, ClientSecret and tenantID to authenticate with the IAM API of Raet Beaufort. Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
+- [ ] Dependent account data in HelloID.
+  - Please make your provisioned system dependent on this Users Target Connector and make sure that the values needed to be written back are stored on the account data (e.g UserPrincipalName).
+- [ ] Configured Beaufort to automatically process import.
+  - The mutations are submitted to Beaufort through the API using the fixed process code IDA. In order for the mutations to be processed automatically, a few checkboxes need to be ticked by the client. The application administrator can do this from the configuration import process screen. The green checkboxes must be ticked for process code IDA. <img src="https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-Raet-Beaufort-IAM-API-Contact-Details/blob/main/Required%20config.png?raw=true">
+
+### Remarks
+
+- Currently, only the 'Business Email Address' and 'Business Phone Number' fields can be updated, no other fields are (currently) supported.
+    > When the value in Raet Beaufort equals the value in HelloID, the action will be skipped (no update will take place).
+- The endpoint operates asynchronously. The data is first stored and internally verified before being submitted to BO4. To track the processing in the API, a ticketId is returned. The ticket ID must be used to check the status of the API call. Within the API, various checks are performed. For example, it checks that the email address matches the format aaaa@bbbb.xxx. It also checks that the phone number does not contain alphanumeric values. However, it does support phone numbers like "035-1234567".
+
 ## Post-setup configuration
 After the all-in-one PowerShell script has run and created all the required resources. The following items need to be configured according to your own environment
  1. Update the following [user-defined variables](https://docs.helloid.com/en/variables/custom-variables.html)
