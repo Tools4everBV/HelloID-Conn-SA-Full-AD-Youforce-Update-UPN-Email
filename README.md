@@ -26,7 +26,7 @@ This HelloID Service Automation Delegated Form provides updates for user princip
   
 - **Youforce API Credentials:**<br>
   - Authorized Visma Developers account to request and receive API credentials in the [Visma Developer portal](https://oauth.developers.visma.com). Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
-  - ClientID, ClientSecret and tenantID to authenticate with the IAM API of Raet YOuforcee.
+  - ClientID, ClientSecret and tenantID to authenticate with the IAM API of Raet Youforce.
   
 - **HelloID Configuration:**<br>
   - HelloID agent with access to both Active Directory and the Youforce API.
