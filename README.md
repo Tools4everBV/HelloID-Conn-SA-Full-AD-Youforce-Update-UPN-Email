@@ -17,6 +17,31 @@ This HelloID Service Automation Delegated Form provides updates for user princip
 5. Update AD user account [UserPrincipalName and EmailAddress] and Youforce employee [EmAd] attribute with new values
 6. Writing back [EmAd] in Youforce will be skipped if the employee is not found in Youforce
 
+## Versioning
+| Version | Description | Date |
+| ------- | ----------- | ---- |
+| 1.0.0 | First release | 2023/10/24 |
+| 2.0.0 | Second release | 2026/04/17 |
+
+<!-- TABLE OF CONTENTS -->
+## Table of Contents
+- [Description](#description)
+- [Versioning](#versioning)
+- [Table of Contents](#table-of-contents)
+- [All-in-one PowerShell setup script](#all-in-one-powershell-setup-script)
+  - [Getting started](#getting-started)
+- [Prerequisites](#prerequisites)
+  - [Remarks](#remarks)
+- [Post-setup configuration](#post-setup-configuration)
+- [Manual resources](#manual-resources)
+  - [Powershell data source 'AD-Youforce-account-update-upn-email-lookup-user-generate-table'](#powershell-data-source-ad-youforce-account-update-upn-email-lookup-user-generate-table)
+  - [Powershell data source 'AD-Youforce-account-update-upn-email-table-user-details'](#powershell-data-source-ad-youforce-account-update-upn-email-table-user-details)
+  - [Powershell data source 'AD-Youforce-account-update-upn-email-validation'](#powershell-data-source-ad-youforce-account-update-upn-email-validation)
+  - [Delegated form task 'AD Youforce Account - Update UPN - Email'](#delegated-form-task-ad-youforce-account---update-upn---email)
+- [Add another systems to update](#add-another-systems-to-update)
+- [Getting help](#getting-help)
+- [HelloID Docs](#helloid-docs)
+
 ## Getting started
 
 ### Requirements
