@@ -1,0 +1,42 @@
+[
+    {
+        "description":  null,
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "newUPN",
+        "type":  0,
+        "options":  0
+    },
+    {
+        "description":  null,
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "newMail",
+        "type":  0,
+        "options":  0
+    },
+    {
+        "description":  null,
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "blnMail",
+        "type":  0,
+        "options":  0
+    },
+    {
+        "description":  null,
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "blnUPN",
+        "type":  0,
+        "options":  0
+    },
+    {
+        "description":  null,
+        "translateDescription":  false,
+        "inputFieldType":  1,
+        "key":  "user",
+        "type":  0,
+        "options":  0
+    }
+]

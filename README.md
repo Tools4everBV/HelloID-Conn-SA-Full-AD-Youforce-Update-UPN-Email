@@ -1,94 +1,110 @@
-<!-- Description -->
+# HelloID-Conn-SA-Full-AD-Youforce-Update-UPN-Email
+
+| :information_source: Information |
+| :------------------------------- |
+| This repository contains the connector and configuration code only. The implementer is responsible for acquiring the connection details such as credentials and API access. You may need to sign an agreement with Visma RAET/Youforce before implementing this connector. Please contact the client's application manager to coordinate the connector requirements. |
+
 ## Description
-This HelloID Service Automation Delegated Form provides updates for user principal name and email on an AD user account and Beaufort employee. The following options are available:
- 1. Search and select the target AD user account
- 2. Show basic AD user account attributes of the selected target user
- 3. Enter new values for the following AD user account attributes: UserPrincipalName and EmailAddress
- 4. The entered UserPrincipalName and EmailAddress are validated
- 5. AD user account [UserPrincipalName and EmailAddress] and Beaufort employee [EmAd] attribute are updated with new values
- 6. Writing back [EmAd] in Beaufort will be skiped if the employee is not found in Beaufort
 
-## Versioning
-| Version | Description   | Date       |
-| ------- | ------------- | ---------- |
-| 1.0.0   | First release | 2023/10/24 |
+_HelloID-Conn-SA-Full-AD-Youforce-Update-UPN-Email_ is a delegated form designed for use with HelloID Service Automation (SA). It can be imported into HelloID and customized according to your requirements.
 
-<!-- TABLE OF CONTENTS -->
-## Table of Contents
-- [Description](#description)
-- [Versioning](#versioning)
-- [Table of Contents](#table-of-contents)
-- [All-in-one PowerShell setup script](#all-in-one-powershell-setup-script)
-  - [Getting started](#getting-started)
-- [Post-setup configuration](#post-setup-configuration)
-- [Manual resources](#manual-resources)
-  - [Powershell data source 'AD-Beaufort-account-update-upn-email-lookup-user-generate-table'](#powershell-data-source-ad-Beaufort-account-update-upn-email-lookup-user-generate-table)
-  - [Powershell data source 'AD-Beaufort-account-update-upn-email-table-user-details'](#powershell-data-source-ad-Beaufort-account-update-upn-email-table-user-details)
-  - [Powershell data source 'AD-Beaufort-account-update-upn-email-validation'](#powershell-data-source-ad-Beaufort-account-update-upn-email-validation)
-  - [Delegated form task 'AD Beaufort Account - Update UPN - Email'](#delegated-form-task-ad-Beaufort-account---update-upn---email)
-- [Add another systems to update](#add-another-systems-to-update)
-- [Getting help](#getting-help)
-- [HelloID Docs](#helloid-docs)
+This HelloID Service Automation Delegated Form provides updates for user principal name and email on an AD user account and Youforce employee. By using this delegated form, you can manage the following:
 
+1. Search and select the target AD user account
+2. Display basic AD user account attributes of the selected target user
+3. Enter new values for the following AD user account attributes: UserPrincipalName and EmailAddress
+4. Validate the entered UserPrincipalName and EmailAddress values
+5. Update AD user account [UserPrincipalName and EmailAddress] and Youforce employee [EmAd] attribute with new values
+6. Writing back [EmAd] in Youforce will be skipped if the employee is not found in Youforce
 
-## All-in-one PowerShell setup script
-The PowerShell script "createform.ps1" contains a complete PowerShell script using the HelloID API to create the complete Form including user-defined variables, tasks and data sources.
+## Getting started
 
- _Please note that this script assumes none of the required resources do exist within HelloID. The script does not contain versioning or source control_
+### Requirements
 
-
-### Getting started
-Please follow the documentation steps on [HelloID Docs](https://docs.helloid.com/en/github-resources/service-automation-github-resources.html) in order to set up and run the All-in-one Powershell Script in your own environment.
-
-This form uses the IAM-user endpoint, with the scope Youforce-IAM:Write_Basic
-
-## Prerequisites
-
-- [ ] Authorized Visma Developers account in order to request and receive the API credentials in the [Visma Developer portal](https://oauth.developers.visma.com). Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
-- [ ] ClientID, ClientSecret and tenantID to authenticate with the IAM API of Raet Beaufort. Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
-- [ ] Dependent account data in HelloID.
-  - Please make your provisioned system dependent on this Users Target Connector and make sure that the values needed to be written back are stored on the account data (e.g UserPrincipalName).
-- [ ] Configured Beaufort to automatically process import.
-  - The mutations are submitted to Beaufort through the API using the fixed process code IDA. In order for the mutations to be processed automatically, a few checkboxes need to be ticked by the client. The application administrator can do this from the configuration import process screen. The green checkboxes must be ticked for process code IDA. <img src="https://github.com/Tools4everBV/HelloID-Conn-Prov-Target-Raet-Beaufort-IAM-API-Contact-Details/blob/main/Required%20config.png?raw=true">
-
-### Remarks
-
-- Currently, only the 'Business Email Address' and 'Business Phone Number' fields can be updated, no other fields are (currently) supported.
-    > When the value in Raet Beaufort equals the value in HelloID, the action will be skipped (no update will take place).
-- The endpoint operates asynchronously. The data is first stored and internally verified before being submitted to BO4. To track the processing in the API, a ticketId is returned. The ticket ID must be used to check the status of the API call. Within the API, various checks are performed. For example, it checks that the email address matches the format aaaa@bbbb.xxx. It also checks that the phone number does not contain alphanumeric values. However, it does support phone numbers like "035-1234567".
-
-## Post-setup configuration
-After the all-in-one PowerShell script has run and created all the required resources. The following items need to be configured according to your own environment
- 1. Update the following [user-defined variables](https://docs.helloid.com/en/variables/custom-variables.html)
-<table>
-  <tr><td><strong>Variable name</strong></td><td><strong>Example value</strong></td><td><strong>Description</strong></td></tr>
-  <tr><td>ADusersSearchOU</td><td>[{ "OU": "OU=Disabled Users,OU=HelloID Training,DC=veeken,DC=local"},{ "OU": "OU=Users,OU=HelloID Training,DC=veeken,DC=local"}]</td><td>Array of Active Directory OUs for scoping AD user accounts in the search result of this form</td></tr>
-  <tr><td>BeaufortClientid</td>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx<td></td><td>The Beaufort ClientID to connect to the webservice</td></tr>
-  <tr><td>BeaufortClientsecret</td><td>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</td><td>The Beaufort Client Secret to connect to the webservice</td></tr>
-  <tr><td>Beauforttenantid</td><td>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</td><td>The Beaufort Tenant ID to Identify the tenant on the webservice</td></tr>
+- **Active Directory Access:**<br>
+  Access to an Active Directory environment with appropriate permissions to query and modify user account attributes.
   
-</table>
+- **Youforce API Credentials:**<br>
+  - Authorized Visma Developers account to request and receive API credentials in the [Visma Developer portal](https://oauth.developers.visma.com). Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
+  - ClientID, ClientSecret and tenantID to authenticate with the IAM API of Raet YOuforcee.
+  
+- **HelloID Configuration:**<br>
+  - HelloID agent with access to both Active Directory and the Youforce API.
+  - Dependent account data in HelloID. The provisioned system should be dependent on this Users Target Connector and the values needed to be written back should be stored on the account data (e.g UserPrincipalName).
+  
+- **Youforce Configuration:**<br>
+  - Youforce must be configured to automatically process imports. The mutations are submitted to Youforce through the API using the fixed process code IDA. The application administrator must tick the green checkboxes for process code IDA in the configuration import process screen.
 
-## Manual resources
-This Delegated Form uses the following resources in order to run
+### Connection settings
 
-### Powershell data source 'AD-Beaufort-account-update-upn-email-lookup-user-generate-table'
-This Powershell data source runs an Active Directory query to search for matching AD user accounts. It uses an array of Active Directory OU's specified as HelloID user-defined variable named _"ADusersSearchOU"_ to specify the search scope. This data source returns additional attributes that receive the current values for UserPrincipalName/EmailAddress and also split them into a prefix and a suffix for future uses.
+The following user-defined variables are used by the connector:
 
-### Powershell data source 'AD-Beaufort-account-update-upn-email-table-user-details'
-This Powershell data source runs an Active Directory query to select an extended list of user attributes of the selected AD user account. 
+| Setting | Description | Mandatory |
+| --- | --- | --- |
+| ADusersSearchOU | Array of Active Directory OUs for scoping AD user accounts in the search result of this form (e.g., `[{ "OU": "OU=Disabled Users,OU=HelloID Training,DC=veeken,DC=local"},{ "OU": "OU=Users,OU=HelloID Training,DC=veeken,DC=local"}]`) | Yes |
+| YouforceClientid | The Youforce ClientID to connect to the webservice (format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | Yes |
+| YouforceClientsecret | The Youforce Client Secret to connect to the webservice (format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | Yes |
+| Youforcetenantid | The Youforce Tenant ID to identify the tenant on the webservice (format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | Yes |
 
-### Powershell data source 'AD-Beaufort-account-update-upn-email-validation'
-This Powershell data source runs an Active Directory query to validate the uniqueness of the new UserPrincipalName and EmailAddress. Both values are also validated in ProxyAddresses. And will return a "Valid" or "Invalid" text. This text is used for validation in the form.
+## Remarks
 
-### Delegated form task 'AD Beaufort Account - Update UPN - Email'
-This delegated form task will update two systems. On the AD user account the attributes UserPrincipalName, EmailAddress and ProxyAddresses will be updated (old Primairy 'SMTP:' will be replaced by a alais 'smtp:'). On the Beaufort employee the attributes EmAd will be updated.
+### Supported Fields
+- Currently, only the UserPrincipalName and EmailAddress fields can be updated on the AD user account and the EmAd field on the Youforce employee. No other fields are currently supported.
+- When the value in Raet Youforce equals the value in HelloID, the action will be skipped (no update will take place).
 
-## Add another systems to update
-It is possible to add another systems to update the UserPrincipalName and EmailAddress by adding them in the task script. It is also possible to send a [email](https://docs.helloid.com/en/service-automation/products/product-tasks.html#email-sends-in-powershell-product-tasks) with the task script.
+### Asynchronous Processing
+- The Youforce endpoint operates asynchronously. The data is first stored and internally verified before being submitted to BO4. A ticketId is returned to track the processing in the API. The ticket ID must be used to check the status of the API call.
+- Within the API, various validation checks are performed:
+  - Email address format validation (e.g., aaaa@bbbb.xxx)
+  - Phone number validation (alphanumeric values are not supported, but formats like "035-1234567" are supported)
+
+### ProxyAddresses Management
+- When updating the EmailAddress in AD, the old primary 'SMTP:' entry will be replaced by an alias 'smtp:' to maintain proper proxy address management.
+
+## Development resources
+
+### API endpoints
+
+The following Youforce API endpoints and Active Directory queries are used by the connector:
+
+| Endpoint/Resource | Description |
+| --- | --- |
+| AD User Query | Query Active Directory for user accounts based on OU scope |
+| Youforce IAM API | Update employee attributes through the Youforce IAM API using process code IDA |
+
+### API documentation
+
+- [Visma Youforce IAM API Documentation](https://oauth.developers.visma.com)
+- [Visma Developer Portal](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059)
+- [HelloID Service Automation Documentation](https://docs.helloid.com/en/service-automation/delegated-forms.html)
+
+### Implementation resources
+
+The following resources are included with this connector:
+
+#### All-in-one PowerShell Setup Script
+The PowerShell script "createform.ps1" contains a complete PowerShell script using the HelloID API to create the complete form including user-defined variables, tasks, and data sources.
+
+**Note:** This script assumes none of the required resources exist within HelloID. The script does not contain versioning or source control. Please follow the documentation steps on [HelloID Docs](https://docs.helloid.com/en/github-resources/service-automation-github-resources.html) to set up and run the All-in-one PowerShell Script in your own environment.
+
+#### PowerShell Data Sources
+- **AD-Youforce-account-update-upn-email-lookup-user-generate-table**: Runs an Active Directory query to search for matching AD user accounts using the ADusersSearchOU variable. Returns current UserPrincipalName/EmailAddress values split into prefix and suffix.
+- **AD-Youforce-account-update-upn-email-table-user-details**: Runs an Active Directory query to retrieve an extended list of user attributes for the selected AD user account.
+- **AD-Youforce-account-update-upn-email-validation**: Validates the uniqueness of new UserPrincipalName and EmailAddress values, including ProxyAddresses, and returns "Valid" or "Invalid" status.
+
+#### Delegated Form Task
+- **AD Youforce Account - Update UPN - Email**: Updates two systems:
+  - On the AD user account: Updates UserPrincipalName, EmailAddress, and ProxyAddresses (old primary 'SMTP:' replaced by alias 'smtp:')
+  - On the Youforce employee: Updates the EmAd attribute
+
+#### Extending the Form
+It is possible to add other systems to update the UserPrincipalName and EmailAddress by adding them in the task script. It is also possible to send an [email notification](https://docs.helloid.com/en/service-automation/products/product-tasks.html#email-sends-in-powershell-product-tasks) through the task script.
 
 ## Getting help
-_If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/service-automation/)_
 
-## HelloID Docs
+> :bulb: **Tip:**  
+> _For more information on Delegated Forms, please refer to our [documentation](https://docs.helloid.com/en/service-automation/delegated-forms.html) pages_.
+
+## HelloID docs
+
 The official HelloID documentation can be found at: https://docs.helloid.com/
