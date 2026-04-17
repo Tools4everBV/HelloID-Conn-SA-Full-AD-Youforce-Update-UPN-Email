@@ -20,7 +20,7 @@ This release introduces significant improvements and updates to the AD and Youfo
     Use semicolon-separated OU values in ADusersSearchOU
 - Updated PowerShell data sources for improved performance
 - Enhanced AD account update logic to handle complex scenarios
-- Improved Beaufort employee attribute synchronization
+- Improved Youforce employee attribute synchronization
 - Better handling of email address format validation
 
 ### Deprecated
