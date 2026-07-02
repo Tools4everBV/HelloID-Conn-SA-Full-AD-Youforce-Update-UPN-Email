@@ -2,15 +2,17 @@
 $searchValue = $dataSource.searchUser
 $searchQuery = "*$searchValue*"
 
-If($searchValue -eq '*'){
+if ($searchValue -eq '*') {
     $filter = '*'
-} else {
-$filter = "Name -like '$searchQuery' -or DisplayName -like '$searchQuery' -or userPrincipalName -like '$searchQuery' -or mail -like '$searchQuery'"
+}
+else {
+    $filter = "Name -like '$searchQuery' -or DisplayName -like '$searchQuery' -or userPrincipalName -like '$searchQuery' -or mail -like '$searchQuery'"
 }
 
 # Global variables
 $searchOUs = $AdUsersSearchOu
 
+# Fixed values
 # Fixed values
 $propertiesToSelect = @(                    
     "SamAccountName",

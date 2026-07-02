@@ -2,132 +2,107 @@
 
 | :information_source: Information |
 | :------------------------------- |
-| This repository contains the connector and configuration code only. The implementer is responsible for acquiring the connection details such as credentials and API access. You may need to sign an agreement with Visma RAET/Youforce before implementing this connector. Please contact the client's application manager to coordinate the connector requirements. |
+| This repository contains the connector and configuration code only. The implementer is responsible for acquiring the connection details such as username, password, certificate, etc. You might even need to sign a contract or agreement with the supplier before implementing this connector. Please contact the client's application manager to coordinate the connector requirements. |
 
 ## Description
 
-_HelloID-Conn-SA-Full-AD-Youforce-Update-UPN-Email_ is a delegated form designed for use with HelloID Service Automation (SA). It can be imported into HelloID and customized according to your requirements.
+HelloID-Conn-SA-Full-AD-Youforce-Update-UPN-Email is a template designed for use with HelloID Service Automation (SA) Delegated Forms. It can be imported into HelloID and customized according to your requirements.
 
-This HelloID Service Automation Delegated Form provides updates for user principal name and email on an AD user account and Youforce employee. By using this delegated form, you can manage the following:
+By using this delegated form, you can update User Principal Name (UPN) and Email attributes in Active Directory and Youforce. The following options are available:
 
-1. Search and select the target AD user account
-2. Display basic AD user account attributes of the selected target user
-3. Enter new values for the following AD user account attributes: UserPrincipalName and EmailAddress
-4. Validate the entered UserPrincipalName and EmailAddress values
-5. Update AD user account [UserPrincipalName and EmailAddress] and Youforce employee [EmAd] attribute with new values
-6. Writing back [EmAd] in Youforce will be skipped if the employee is not found in Youforce
-
-## Versioning
-| Version | Description | Date |
-| ------- | ----------- | ---- |
-| 1.0.0 | First release | 2023/10/24 |
-| 2.0.0 | Second release | 2026/04/17 |
-
-<!-- TABLE OF CONTENTS -->
-## Table of Contents
-- [Description](#description)
-- [Versioning](#versioning)
-- [Table of Contents](#table-of-contents)
-- [All-in-one PowerShell setup script](#all-in-one-powershell-setup-script)
-  - [Getting started](#getting-started)
-- [Prerequisites](#prerequisites)
-  - [Remarks](#remarks)
-- [Post-setup configuration](#post-setup-configuration)
-- [Manual resources](#manual-resources)
-  - [Powershell data source 'AD-Youforce-account-update-upn-email-lookup-user-generate-table'](#powershell-data-source-ad-youforce-account-update-upn-email-lookup-user-generate-table)
-  - [Powershell data source 'AD-Youforce-account-update-upn-email-table-user-details'](#powershell-data-source-ad-youforce-account-update-upn-email-table-user-details)
-  - [Powershell data source 'AD-Youforce-account-update-upn-email-validation'](#powershell-data-source-ad-youforce-account-update-upn-email-validation)
-  - [Delegated form task 'AD Youforce Account - Update UPN - Email'](#delegated-form-task-ad-youforce-account---update-upn---email)
-- [Add another systems to update](#add-another-systems-to-update)
-- [Getting help](#getting-help)
-- [HelloID Docs](#helloid-docs)
+1. Search and select the target Active Directory user account
+2. Enter new values for UserPrincipalName and EmailAddress
+3. Validate uniqueness of UserPrincipalName and EmailAddress in Active Directory
+4. Update UserPrincipalName, EmailAddress, and ProxyAddresses in Active Directory
+5. Update business email details in Youforce when a matching employee is found
 
 ## Getting started
 
 ### Requirements
 
-- **Active Directory Access:**<br>
-  Access to an Active Directory environment with appropriate permissions to query and modify user account attributes.
-  
-- **Youforce API Credentials:**<br>
-  - Authorized Visma Developers account to request and receive API credentials in the [Visma Developer portal](https://oauth.developers.visma.com). Please follow the [Visma documentation on how to register the App and grant access to client data](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059).
-  - ClientID, ClientSecret and tenantID to authenticate with the IAM API of Raet Youforce.
-  
-- **HelloID Configuration:**<br>
-  - HelloID agent with access to both Active Directory and the Youforce API.
-  - Dependent account data in HelloID. The provisioned system should be dependent on this Users Target Connector and the values needed to be written back should be stored on the account data (e.g UserPrincipalName).
-  
-- **Youforce Configuration:**<br>
-  - Youforce must be configured to automatically process imports. The mutations are submitted to Youforce through the API using the fixed process code IDA. The application administrator must tick the green checkboxes for process code IDA in the configuration import process screen.
+#### Active Directory setup
+
+Before implementing this connector, make sure the HelloID Agent runs under an account with sufficient rights to update Active Directory user attributes.
+
+Recommended permissions:
+
+- Account Operators rights (or equivalent delegated rights) to update:
+  - UserPrincipalName
+  - EmailAddress
+  - ProxyAddresses
+
+#### Youforce setup
+
+Ensure Youforce is configured with:
+
+- Youforce tenant id
+- Youforce client id
+- Youforce client secret
+- Access to the Youforce IAM API
+
+#### HelloID-specific configuration
+
+Once you have completed the Active Directory and Youforce setup, configure the following HelloID-specific requirements:
+
+- Configure the user-defined variables listed in Connection settings
+- Import and configure the delegated form and task scripts
 
 ### Connection settings
 
-The following user-defined variables are used by the connector:
+The following user-defined variables are used by the connector and should be configured in HelloID Service Automation (Automation -> Variable library).
 
-| Setting | Description | Mandatory |
-| --- | --- | --- |
-| ADusersSearchOU | Array of Active Directory OUs for scoping AD user accounts in the search result of this form (e.g., `[{ "OU": "OU=Disabled Users,OU=HelloID Training,DC=veeken,DC=local"},{ "OU": "OU=Users,OU=HelloID Training,DC=veeken,DC=local"}]`) | Yes |
-| YouforceClientid | The Youforce ClientID to connect to the webservice (format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | Yes |
-| YouforceClientsecret | The Youforce Client Secret to connect to the webservice (format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | Yes |
-| Youforcetenantid | The Youforce Tenant ID to identify the tenant on the webservice (format: `xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`) | Yes |
+| Variable Name        | Description                                                             | Required |
+| -------------------- | ----------------------------------------------------------------------- | -------- |
+| ADusersSearchOU      | Array of Active Directory OUs used to scope user search results         | Yes      |
+| YouforceClientid     | The Youforce client id used to authenticate to the Youforce IAM API     | Yes      |
+| YouforceClientsecret | The Youforce client secret used to authenticate to the Youforce IAM API | Yes      |
+| Youforcetenantid     | The Youforce tenant id used during OAuth token retrieval                | Yes      |
 
 ## Remarks
 
-### Supported Fields
-- Currently, only the UserPrincipalName and EmailAddress fields can be updated on the AD user account and the EmAd field on the Youforce employee. No other fields are currently supported.
-- When the value in Raet Youforce equals the value in HelloID, the action will be skipped (no update will take place).
+### Uniqueness validation
 
-### Asynchronous Processing
-- The Youforce endpoint operates asynchronously. The data is first stored and internally verified before being submitted to BO4. A ticketId is returned to track the processing in the API. The ticket ID must be used to check the status of the API call.
-- Within the API, various validation checks are performed:
-  - Email address format validation (e.g., aaaa@bbbb.xxx)
-  - Phone number validation (alphanumeric values are not supported, but formats like "035-1234567" are supported)
+- The form validates uniqueness for UserPrincipalName and EmailAddress before updating.
+- Validation checks both direct attributes and ProxyAddresses.
+- The selected user itself is excluded from the uniqueness check.
 
-### ProxyAddresses Management
-- When updating the EmailAddress in AD, the old primary 'SMTP:' entry will be replaced by an alias 'smtp:' to maintain proper proxy address management.
+### ProxyAddresses behavior
+
+- When the primary SMTP value changes, the previous primary address (SMTP:) is converted to an alias (smtp:).
+- This preserves historical aliases while setting the new primary address.
+
+### Youforce employee matching
+
+- Youforce updates depend on a valid EmployeeID correlation between Active Directory and Youforce.
+- If no matching Youforce employee is found, Youforce updates are skipped while Active Directory updates can still proceed.
+
+### Youforce target objects
+
+- Youforce person contact details endpoint is used to update business email.
+- Optional identity updates can be handled through the Youforce IAM users identity endpoint.
 
 ## Development resources
 
-### API endpoints
+### Endpoints and operations
 
-The following Youforce API endpoints and Active Directory queries are used by the connector:
+The following operations are used by the connector:
 
-| Endpoint/Resource | Description |
-| --- | --- |
-| AD User Query | Query Active Directory for user accounts based on OU scope |
-| Youforce IAM API | Update employee attributes through the Youforce IAM API using process code IDA |
+| Operation                                                     | Purpose                                                    |
+| ------------------------------------------------------------- | ---------------------------------------------------------- |
+| Active Directory (Get-ADUser)                                 | Search and retrieve Active Directory users                 |
+| Active Directory (Set-ADUser)                                 | Update UserPrincipalName, EmailAddress, and ProxyAddresses |
+| https://connect.visma.com/connect/token                       | Retrieve OAuth access token for Youforce                   |
+| https://api.youforce.com/iam/v1.0/persons/{EmployeeID}        | Retrieve correlated Youforce person                        |
+| https://api.youforce.com/iam/v1.0/ContactDetails/{PersonCode} | Update Youforce business email details                     |
 
-### API documentation
+### API and cmdlet documentation
 
-- [Visma Youforce IAM API Documentation](https://oauth.developers.visma.com)
-- [Visma Developer Portal](https://community.visma.com/t5/Kennisbank-Youforce-API/Visma-Developer-portal-een-account-aanmaken-applicatie/ta-p/527059)
-- [HelloID Service Automation Documentation](https://docs.helloid.com/en/service-automation/delegated-forms.html)
-
-### Implementation resources
-
-The following resources are included with this connector:
-
-#### All-in-one PowerShell Setup Script
-The PowerShell script "createform.ps1" contains a complete PowerShell script using the HelloID API to create the complete form including user-defined variables, tasks, and data sources.
-
-**Note:** This script assumes none of the required resources exist within HelloID. The script does not contain versioning or source control. Please follow the documentation steps on [HelloID Docs](https://docs.helloid.com/en/github-resources/service-automation-github-resources.html) to set up and run the All-in-one PowerShell Script in your own environment.
-
-#### PowerShell Data Sources
-- **AD-Youforce-account-update-upn-email-lookup-user-generate-table**: Runs an Active Directory query to search for matching AD user accounts using the ADusersSearchOU variable. Returns current UserPrincipalName/EmailAddress values split into prefix and suffix.
-- **AD-Youforce-account-update-upn-email-table-user-details**: Runs an Active Directory query to retrieve an extended list of user attributes for the selected AD user account.
-- **AD-Youforce-account-update-upn-email-validation**: Validates the uniqueness of new UserPrincipalName and EmailAddress values, including ProxyAddresses, and returns "Valid" or "Invalid" status.
-
-#### Delegated Form Task
-- **AD Youforce Account - Update UPN - Email**: Updates two systems:
-  - On the AD user account: Updates UserPrincipalName, EmailAddress, and ProxyAddresses (old primary 'SMTP:' replaced by alias 'smtp:')
-  - On the Youforce employee: Updates the EmAd attribute
-
-#### Extending the Form
-It is possible to add other systems to update the UserPrincipalName and EmailAddress by adding them in the task script. It is also possible to send an [email notification](https://docs.helloid.com/en/service-automation/products/product-tasks.html#email-sends-in-powershell-product-tasks) through the task script.
+- Active Directory Get-ADUser: https://learn.microsoft.com/en-us/powershell/module/activedirectory/get-aduser
+- Active Directory Set-ADUser: https://learn.microsoft.com/en-us/powershell/module/activedirectory/set-aduser
+- Visma Youforce IAM API Documentation: https://oauth.developers.visma.com
 
 ## Getting help
-
-> :bulb: **Tip:**  
+> [!TIP]
 > _For more information on Delegated Forms, please refer to our [documentation](https://docs.helloid.com/en/service-automation/delegated-forms.html) pages_.
 
 ## HelloID docs
