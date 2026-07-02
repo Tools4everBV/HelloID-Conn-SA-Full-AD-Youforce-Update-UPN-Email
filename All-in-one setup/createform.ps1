@@ -16,25 +16,23 @@ $script:duplicateFormSuffix = "_tmp" #the suffix will be added to all HelloID re
 #NOTE: You can also update the HelloID Global variable values afterwards in the HelloID Admin Portal: https://<CUSTOMER>.helloid.com/admin/variablelibrary
 $globalHelloIDVariables = [System.Collections.Generic.List[object]]@();
 
-#Global variable #1 >> Beauforttenantid
+#Global variable #1 >> YouforceClientSecret
 $tmpName = @'
-Beauforttenantid
-'@ 
-$tmpValue = @'
-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-'@ 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
-
-#Global variable #2 >> BeaufortClientsecret
-$tmpName = @'
-BeaufortClientsecret
+YouforceClientSecret
 '@ 
 $tmpValue = "" 
-$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "True"});
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
-#Global variable #3 >> BeaufortClientid
+#Global variable #2 >> YouforceClientId
 $tmpName = @'
-BeaufortClientid
+YouforceClientId
+'@ 
+$tmpValue = "" 
+$globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
+
+#Global variable #3 >> YouforceTenantId
+$tmpName = @'
+YouforceTenantId
 '@ 
 $tmpValue = "" 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
@@ -44,7 +42,7 @@ $tmpName = @'
 ADusersSearchOU
 '@ 
 $tmpValue = @'
-[{ "OU": "OU=Disabled Users,OU=HelloID Training,DC=veeken,DC=local"},{ "OU": "OU=Users,OU=HelloID Training,DC=veeken,DC=local"}]
+OU=Users,OU=enyoi,DC=enyoi,DC=local;OU=UsersLite,OU=enyoi,DC=enyoi,DC=local
 '@ 
 $globalHelloIDVariables.Add([PSCustomObject]@{name = $tmpName; value = $tmpValue; secret = "False"});
 
@@ -102,7 +100,7 @@ function Invoke-HelloIDGlobalVariable {
     try {
         $uri = ($script:PortalBaseUrl + "api/v1/automation/variables/named/$Name")
         $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
-    
+
         if ([string]::IsNullOrEmpty($response.automationVariableGuid)) {
             #Create Variable
             $body = @{
@@ -112,7 +110,7 @@ function Invoke-HelloIDGlobalVariable {
                 ItemType = 0;
             }    
             $body = ConvertTo-Json -InputObject $body -Depth 100
-    
+
             $uri = ($script:PortalBaseUrl + "api/v1/automation/variable")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
             $variableGuid = $response.automationVariableGuid
@@ -138,14 +136,14 @@ function Invoke-HelloIDAutomationTask {
         [parameter()][String][AllowEmptyString()]$ForceCreateTask,
         [parameter(Mandatory)][Ref]$returnObject
     )
-    
+
     $TaskName = $TaskName + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
 
     try {
         $uri = ($script:PortalBaseUrl +"api/v1/automationtasks?search=$TaskName&container=$AutomationContainer")
         $responseRaw = (Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false) 
         $response = $responseRaw | Where-Object -filter {$_.name -eq $TaskName}
-    
+
         if([string]::IsNullOrEmpty($response.automationTaskGuid) -or $ForceCreateTask -eq $true) {
             #Create Task
 
@@ -158,7 +156,7 @@ function Invoke-HelloIDAutomationTask {
                 variables           = (ConvertFrom-Json-WithEmptyArray($Variables));
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
-    
+
             $uri = ($script:PortalBaseUrl +"api/v1/automationtasks/powershell")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
             $taskGuid = $response.automationTaskGuid
@@ -185,6 +183,7 @@ function Invoke-HelloIDDatasource {
         [parameter()][String][AllowEmptyString()]$DatasourcePsScript,        
         [parameter()][String][AllowEmptyString()]$DatasourceInput,
         [parameter()][String][AllowEmptyString()]$AutomationTaskGuid,
+        [parameter()][String][AllowEmptyString()]$DatasourceRunInCloud,
         [parameter(Mandatory)][Ref]$returnObject
     )
 
@@ -196,11 +195,11 @@ function Invoke-HelloIDDatasource {
         "3" { "Task data source"; break} 
         "4" { "Powershell data source"; break}
     }
-    
+
     try {
         $uri = ($script:PortalBaseUrl +"api/v1/datasource/named/$DatasourceName")
         $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
-      
+    
         if([string]::IsNullOrEmpty($response.dataSourceGUID)) {
             #Create DataSource
             $body = @{
@@ -211,12 +210,13 @@ function Invoke-HelloIDDatasource {
                 value              = (ConvertFrom-Json-WithEmptyArray($DatasourceStaticValue));
                 script             = $DatasourcePsScript;
                 input              = (ConvertFrom-Json-WithEmptyArray($DatasourceInput));
+                runInCloud         = $DatasourceRunInCloud;
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
-      
+    
             $uri = ($script:PortalBaseUrl +"api/v1/datasource")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
-              
+            
             $datasourceGuid = $response.dataSourceGUID
             Write-Information "$datasourceTypeName '$DatasourceName' created$(if ($script:debugLogging -eq $true) { ": " + $datasourceGuid })"
         } else {
@@ -225,7 +225,7 @@ function Invoke-HelloIDDatasource {
             Write-Warning "$datasourceTypeName '$DatasourceName' already exists$(if ($script:debugLogging -eq $true) { ": " + $datasourceGuid })"
         }
     } catch {
-      Write-Error "$datasourceTypeName '$DatasourceName', message: $_"
+        Write-Error "$datasourceTypeName '$DatasourceName', message: $_"
     }
 
     $returnObject.Value = $datasourceGuid
@@ -237,7 +237,7 @@ function Invoke-HelloIDDynamicForm {
         [parameter(Mandatory)][String]$FormSchema,
         [parameter(Mandatory)][Ref]$returnObject
     )
-    
+
     $FormName = $FormName + $(if ($script:duplicateForm -eq $true) { $script:duplicateFormSuffix })
 
     try {
@@ -247,7 +247,7 @@ function Invoke-HelloIDDynamicForm {
         } catch {
             $response = $null
         }
-    
+
         if(([string]::IsNullOrEmpty($response.dynamicFormGUID)) -or ($response.isUpdated -eq $true)) {
             #Create Dynamic form
             $body = @{
@@ -255,10 +255,10 @@ function Invoke-HelloIDDynamicForm {
                 FormSchema = (ConvertFrom-Json-WithEmptyArray($FormSchema));
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
-    
+
             $uri = ($script:PortalBaseUrl +"api/v1/forms")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
-    
+
             $formGuid = $response.dynamicFormGUID
             Write-Information "Dynamic form '$formName' created$(if ($script:debugLogging -eq $true) { ": " + $formGuid })"
         } else {
@@ -294,7 +294,7 @@ function Invoke-HelloIDDelegatedForm {
         } catch {
             $response = $null
         }
-    
+
         if([string]::IsNullOrEmpty($response.delegatedFormGUID)) {
             #Create DelegatedForm
             $body = @{
@@ -311,10 +311,10 @@ function Invoke-HelloIDDelegatedForm {
                 }
             }
             $body = ConvertTo-Json -InputObject $body -Depth 100
-    
+
             $uri = ($script:PortalBaseUrl +"api/v1/delegatedforms")
             $response = Invoke-RestMethod -Method Post -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false -Body $body
-    
+
             $delegatedFormGuid = $response.delegatedFormGUID
             Write-Information "Delegated form '$DelegatedFormName' created$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormGuid })"
             $delegatedFormCreated = $true
@@ -336,7 +336,6 @@ function Invoke-HelloIDDelegatedForm {
     $returnObject.value.created = $delegatedFormCreated
 }
 
-
 <# Begin: HelloID Global Variables #>
 foreach ($item in $globalHelloIDVariables) {
 	Invoke-HelloIDGlobalVariable -Name $item.name -Value $item.value -Secret $item.secret 
@@ -345,198 +344,207 @@ foreach ($item in $globalHelloIDVariables) {
 
 
 <# Begin: HelloID Data sources #>
-<# Begin: DataSource "AD-Beaufort-account-update-upn-email-validation" #>
+<# Begin: DataSource "ad-youforce-account-update-upn-email | AD-Get-Active-Users-DisplayName-Mail-Name-UserprincipalName" #>
 $tmpPsScript = @'
-#######################################################################
-# Template: CB HelloID SA Powershell data source
-# Name:     AD-Beaufort-account-update-upn-email-validation
-# Date:     24-10-2023
-#######################################################################
+# Variables configured in form
+$searchValue = $dataSource.searchUser
+$searchQuery = "*$searchValue*"
 
-# For basic information about powershell data sources see:
-# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources/add,-edit,-or-remove-a-powershell-data-source.html#add-a-powershell-data-source
+if ($searchValue -eq '*') {
+    $filter = '*'
+}
+else {
+    $filter = "Name -like '$searchQuery' -or DisplayName -like '$searchQuery' -or userPrincipalName -like '$searchQuery' -or mail -like '$searchQuery'"
+}
 
-# Service automation variables:
-# https://docs.helloid.com/en/service-automation/service-automation-variables/service-automation-variable-reference.html
+# Global variables
+$searchOUs = $AdUsersSearchOu
 
-#region init
+# Fixed values
+# Fixed values
+$propertiesToSelect = @(                    
+    "SamAccountName",
+    "DisplayName",
+    "UserPrincipalName",
+    "mail",
+    "ObjectGuid",
+    "EmployeeID"
+) # Properties to select from Microsoft AD, comma separated
 
+# Set debug logging
 $VerbosePreference = "SilentlyContinue"
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-$outputText = [System.Collections.Generic.List[PSCustomObject]]::new()
+try {
+    #region Searching user
+    $actionMessage = "searching AD account(s) with the value entered [$($searchValue)]"
 
-
-# global variables (Automation --> Variable libary):
-# $globalVar = $globalVarName
-
-# variables configured in form:
-$upnEmailEqual = $datasource.upnEmailEqual
-$userSID = $dataSource.selectedUser.SID
-
-$upnCurrent = $dataSource.selectedUser.UserPrincipalName
-$upnPrefixNew = $datasource.upnPrefix
-$upnSuffixCurrent = $datasource.upnSuffixCurrent
-$upnSuffixNew = $datasource.upnSuffixNew
-if ([string]::IsNullOrEmpty($upnSuffixNew)) {
-    $upnNew = $upnPrefixNew + $upnSuffixCurrent
-}
-else {
-    $upnNew = $upnPrefixNew + $upnSuffixNew
-}
-
-if ($upnEmailEqual -eq "True") {
-    $emailOrUpnNew = $upnNew
-}
-else {
-    $emailCurrent = $dataSource.selectedUser.EmailAddress
-    $emailPrefixNew = $datasource.emailPrefix
-    $emailSuffixCurrent = $datasource.emailSuffixCurrent
-    $emailSuffixNew = $datasource.emailSuffixNew
-    if ([string]::IsNullOrEmpty($emailSuffixNew)) {
-        $emailOrUpnNew = $emailPrefixNew + $emailSuffixCurrent
+    if ([String]::IsNullOrEmpty($searchValue) -eq $true) {
+        return
     }
     else {
-        $emailOrUpnNew = $emailPrefixNew + $emailSuffixNew
+        Write-Information "SearchQuery: $searchQuery"
+        Write-Information "SearchBase: $searchOUs"
+         
+        $ous = $searchOUs -split ';'
+        $users = foreach ($item in $ous) {
+            $getAdUsersSplatParams = @{
+                Filter      = $filter
+                Searchbase  = $item
+                Properties  = $propertiesToSelect
+                Verbose     = $False
+                ErrorAction = "Stop"
+            }
+            Get-AdUser @getAdUsersSplatParams | Select-Object -Property $propertiesToSelect
+        }
+         
+        $users = $users | Sort-Object -Property DisplayName
+        $resultCount = @($users).Count
+        Write-Information "Result count: $resultCount"
+         
+        if ($resultCount -gt 0) {
+            foreach ($user in $users) {
+                Write-Output $user
+            }
+        }
     }
 }
+catch {
+    $ex = $PSItem
+    Write-Warning "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+    Write-Error "Error $($actionMessage). Error: $($ex.Exception.Message)"
+    # exit # use when using multiple try/catch and the script must stop
+}
+'@ 
+$tmpModel = @'
+[{"key":"SamAccountName","type":0},{"key":"DisplayName","type":0},{"key":"UserPrincipalName","type":0},{"key":"mail","type":0},{"key":"ObjectGuid","type":0}]
+'@ 
+$tmpInput = @'
+[{"description":null,"translateDescription":false,"inputFieldType":1,"key":"searchUser","type":0,"options":1}]
+'@ 
+$dataSourceGuid_0 = [PSCustomObject]@{} 
+$dataSourceGuid_0_Name = @'
+ad-youforce-account-update-upn-email | AD-Get-Active-Users-DisplayName-Mail-Name-UserprincipalName
+'@ 
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_0_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "False" -returnObject ([Ref]$dataSourceGuid_0) 
+<# End: DataSource "ad-youforce-account-update-upn-email | AD-Get-Active-Users-DisplayName-Mail-Name-UserprincipalName" #>
 
-#endregion init
+<# Begin: DataSource "ad-youforce-account-update-upn-email | AD-account-update-upn-email-validation" #>
+$tmpPsScript = @'
+# variables configured in form:
+$user = $datasource.user
+$blnmail = [System.Convert]::ToBoolean($datasource.blnMail)
+$blnupn = [System.Convert]::ToBoolean($datasource.blnUPN)
+$newMailAddress = $datasource.newMail
+$newUserPrincipalName = $datasource.newUPN
+$searchUpperCaseEmail = $newMailAddress
+$searchLowerCaseEmail = $newMailAddress
+$searchUpperCaseUPN = $newUserPrincipalName
+$searchLowerCaseUPN = $newUserPrincipalName
+$outputText = [System.Collections.Generic.List[PSCustomObject]]::new()
 
-#region functions
-# function Remove-StringLatinCharacters {
-#     PARAM ([string]$String)
-#     [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($String))
-# }
-#endregion functions
+# Global variables
+$searchOUs = $ADusersSearchOU
+
+# Fixed values
+$propertiesToSelect = @(                    
+    "SamAccountName",
+    "mail",
+    "Name",
+    "DisplayName",
+    "UserPrincipalName",
+    "Enabled", 
+    "ObjectGuid"
+) # Properties to select from Microsoft AD, comma separated
+
+# Set debug logging
+$VerbosePreference = "SilentlyContinue"
+$InformationPreference = "Continue"
+$WarningPreference = "Continue"
 
 #region lookup
 try {
-    if ($upnCurrent -eq $upnNew) {
-        $outputText.Add([PSCustomObject]@{
-                Message  = "UPN [$upnCurrent] not changed"
-                IsError  = $true
-                Property = "UPN"
-            })
+    $actionMessage = "validating new UPN and mail values"
+
+    if ($blnupn -and ([string]::IsNullOrWhiteSpace($newUserPrincipalName) -or ($user.UserPrincipalName -eq $newUserPrincipalName))) {
+        Write-information "UPN [$($user.userPrincipalName)]for user [$($user.userPrincipalName)] with objectguid [$($user.ObjectGuid)] has not been changed"
+    }
+    if ($blnmail -and ([string]::IsNullOrWhiteSpace($newMailAddress) -or ($user.mail -eq $newMailAddress))) {
+        Write-information "Mail [$($user.mail)] for user [$($user.mail)] with objectguid [$($user.ObjectGuid)] has not been changed"
     }
 
-    if (($emailCurrent -eq $emailOrUpnNew)) {
-        $outputText.Add([PSCustomObject]@{
-                Message  = "Email [$emailCurrent] not changed"
-                IsError  = $true
-                Property = "Email"
-            })
+    $actionMessage = "checking AD for uniqueness"
+
+    $filter = "(ObjectGuid -ne '$($user.ObjectGuid)')"
+
+    $filterParts = @()
+
+    if ($blnmail -and -not [string]::IsNullOrWhiteSpace($newMailAddress)) {
+        $filterParts += "(mail -eq '$newMailAddress' -or ProxyAddresses -eq 'SMTP:$($newMailAddress.ToUpperInvariant())' -or ProxyAddresses -eq 'smtp:$($newMailAddress.ToLowerInvariant())')"
     }
+
+    if ($blnupn -and -not [string]::IsNullOrWhiteSpace($newUserPrincipalName)) {
+        $filterParts += "(UserPrincipalName -eq '$newUserPrincipalName' -or ProxyAddresses -eq 'SMTP:$($newUserPrincipalName.ToUpperInvariant())' -or ProxyAddresses -eq 'smtp:$($newUserPrincipalName.ToLowerInvariant())')"
+    }
+
+    if ($filterParts.Count -eq 0) {
+        # Nothing to validate for uniqueness
+        $filter = "(ObjectGuid -ne '$($user.ObjectGuid)')"
+        # Optional: skip Get-ADUser and return Valid directly
+    }
+    else {
+        $filter = "(ObjectGuid -ne '$($user.ObjectGuid)') -and (" + ($filterParts -join ' -or ') + ")"
+    }
+
+    Write-Information "SearchBase: $searchOUs"
     
-    # $upnNew = Remove-StringLatinCharacters $upnNew
-    # $emailOrUpnNew = Remove-StringLatinCharacters $emailOrUpnNew
-
-    # $pattern = "^[a-zA-Z0-9_%+-]+(\.[a-zA-Z0-9_%+-]+)*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
-    
-    # if (-not($upnNew -match $pattern)) {
-    #     $outputText.Add([PSCustomObject]@{
-    #             Message  = "UPN [$upnNew] invalid character(s) or pattern"
-    #             IsError  = $true
-    #             Property = "UPN"
-    #         })
-    # }
-
-    # if ((-not($emailOrUpnNew -match $pattern))) {
-    #     $outputText.Add([PSCustomObject]@{
-    #             Message  = "Email [$emailOrUpnNew] invalid character(s) or pattern"
-    #             IsError  = $true
-    #             Property = "Email"
-    #         })
-    # }
-
-    if (-not($outputText.isError -contains - $true)) {
-        write-information "no errors"
-        
-        if ($upnEmailEqual -eq "True") {
-            $searchUpperCase = "SMTP:$upnNew"
-            $searchLowerCase = "smtp:$upnNew"
-    
-            $adUserParams = @{
-                # Filter     = { (EmailAddress -eq $upnNew -or ProxyAddresses -eq SMTP:$upnNew -or ProxyAddresses -eq smtp:$upnNew -or userPrincipalName -eq $upnNew) -and (SID -ne $userSID) }
-                Filter     = { (EmailAddress -eq $upnNew -or ProxyAddresses -eq $searchUpperCase -or ProxyAddresses -eq $searchLowerCase -or userPrincipalName -eq $upnNew) -and (SID -ne $userSID) }
-                Properties = 'ProxyAddresses', 'userPrincipalName', 'EmailAddress'
-            }
+    $ous = $searchOUs -split ';'
+    $users = foreach ($item in $ous) {
+        $getAdUsersSplatParams = @{
+            Filter      = $filter
+            Properties  = $propertiesToSelect
+            SearchBase  = $item
+            Verbose     = $false
+            ErrorAction = 'Stop'
         }
-        else { 
-            $searchUpperCaseUPN = "SMTP:$upnNew"
-            $searchLowerCaseUPN = "smtp:$upnNew"
-            $searchUpperCaseEmail = "SMTP:$emailOrUpnNew"
-            $searchLowerCaseEmail = "smtp:$emailOrUpnNew"
+        Get-AdUser @getAdUsersSplatParams | Select-Object -Property $propertiesToSelect
+    }
 
-            $adUserParams = @{
-                Filter     = { (EmailAddress -eq $emailOrUpnNew -or ProxyAddresses -eq $searchUpperCaseUPN -or ProxyAddresses -eq $searchLowerCaseUPN -or ProxyAddresses -eq $searchUpperCaseEmail -or ProxyAddresses -eq $searchLowerCaseEmail -or userPrincipalName -eq $upnNew) -and (SID -ne $userSID) }
-                Properties = 'ProxyAddresses', 'userPrincipalName', 'EmailAddress'
-            }
+    #region Sorting user object(s)
+    $users = $users | Sort-Object -Property DisplayName
+    $resultCount = @($users).Count
+    Write-Information "Result count: $resultCount"
+
+    foreach ($user in $users) {
+        if ($user.UserPrincipalName -eq $newUserPrincipalName -and $blnupn) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "UPN [$newUserPrincipalName] not unique, found on [$($user.Name)]"
+                    IsError  = $true
+                    Property = "UPN"
+                })
         }
-
-        $found = Get-ADUser @adUserParams
-
-        write-information "FOUND [$($found | Convertto-json)]"
-
-
-        foreach ($record in $found) {
-            if ($record.UserPrincipalName -eq $upnNew) {
-                $outputText.Add([PSCustomObject]@{
-                        Message  = "UPN [$upnNew] not unique, found on [$($record.Name)]"
-                        IsError  = $true
-                        Property = "UPN"
-                    })
-            }
-            if ($record.EmailAddress -eq $emailOrUpnNew) {
-                $outputText.Add([PSCustomObject]@{
-                        Message  = "Email [$emailOrUpnNew] not unique, found on [$($record.Name)]"
-                        IsError  = $true
-                        Property = "Email"
-                    })
-            }
-            elseif (($record.ProxyAddresses -eq "SMTP:$emailOrUpnNew") -or ($record.ProxyAddresses -eq "smtp:$emailOrUpnNew")) {
-                $outputText.Add([PSCustomObject]@{
-                        Message  = "ProxyAddress [$emailOrUpnNew] not unique, found on [$($record.Name)]"
-                        IsError  = $true
-                        Property = "ProxyAddress"
-                    })
-            }
-            elseif (($record.ProxyAddresses -eq "SMTP:$upnNew") -or ($record.ProxyAddresses -eq "smtp:$upnNew") -and ($upnNew -ne $emailOrUpnNew)) {
-                $outputText.Add([PSCustomObject]@{
-                        Message  = "ProxyAddress [$upnNew] not unique, found on [$($record.Name)]"
-                        IsError  = $true
-                        Property = "ProxyAddress"
-                    })
-            }
-            
-            # Write-Information "UserPrincipalName [$($record.UserPrincipalName)]"
-            # Write-Information "EmailAddress [$($record.EmailAddress)]"
-            # Write-Information "ProxyAddresses [$($record.ProxyAddresses)]"
-            # Write-Information "DistinguishedName [$($record.DistinguishedName)]"
+        if ($user.mail -eq $newMailAddress -and $blnmail) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "Email [$newMailAddress] not unique, found on [$($user.Name)]"
+                    IsError  = $true
+                    Property = "Email"
+                })
         }
-
-        # if (-not($outputText.Property -contains "UPN")) {
-        #     $outputText.Add([PSCustomObject]@{
-        #             Message  = "UPN [$upnNew] unique"
-        #             IsError  = $false
-        #             Property = "UPN"
-        #         })
-        # }
-        # if (-not($outputText.Property -contains "Email")) {
-        #     $outputText.Add([PSCustomObject]@{
-        #             Message  = "Email [$emailOrUpnNew] unique"
-        #             IsError  = $false
-        #             Property = "Email"
-        #         })
-        # }
-        # if (-not($outputText.Property -contains "ProxyAddress")) {
-        #     $outputText.Add([PSCustomObject]@{
-        #             Message  = "ProxyAddress [$emailOrUpnNew] unique"
-        #             IsError  = $false
-        #             Property = "ProxyAddress"
-        #         })
-        # }
+        elseif (($user.ProxyAddresses -eq "SMTP:$newUserPrincipalName") -or ($record.ProxyAddresses -eq "smtp:$newUserPrincipalName") -and $blnupn) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "ProxyAddress [$newUserPrincipalName] not unique, found on [$($user.Name)]"
+                    IsError  = $true
+                    Property = "ProxyAddress"
+                })
+        }
+        elseif (($user.ProxyAddresses -eq "SMTP:$newMailAddress") -or ($record.ProxyAddresses -eq "smtp:$newMailAddress") -and $blnmail) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "ProxyAddress [$newMailAddress] not unique, found on [$($user.Name)]"
+                    IsError  = $true
+                    Property = "ProxyAddress"
+                })
+        }
     }
 
     if ($outputText.isError -contains - $true) {
@@ -544,166 +552,57 @@ try {
     }
     else {
         $outputMessage = "Valid"
-        $outputText.Add([PSCustomObject]@{
-                Message  = "UPN [$upnNew] unique"
-                IsError  = $false
-                Property = "UPN"
-            })
-        $outputText.Add([PSCustomObject]@{
-                Message  = "Email [$emailOrUpnNew] unique"
-                IsError  = $false
-                Property = "Email"
-            })
+        if ($blnupn) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "UPN [$newUserPrincipalName] unique"
+                    IsError  = $false
+                    Property = "UPN"
+                })
+        }
+        if ($blnmail) {
+            $outputText.Add([PSCustomObject]@{
+                    Message  = "Email [$newMailAddress] unique"
+                    IsError  = $false
+                    Property = "Email"
+                })
+        }
     }
 
     foreach ($text in $outputText) {
-        $outputMessage += " | " + $($text.Message)
+        $outputMessage += "`n" + $($text.Message)
     }
 
-    $returnObject = @{
-        text              = $outputMessage
-        userPrincipalName = $upnNew
-        emailAddress      = $emailOrUpnNew
-    }
-
-    Write-Output $returnObject      
+    Write-Output $outputMessage  
 }
 catch {
     $ex = $PSItem
-    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
-        
-    Write-Error "Error querying data. Error Message: $($_ex.Exception.Message)" 
+    Write-Warning "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+    Write-Error "Error $($actionMessage). Error: $($ex.Exception.Message)"
 }
 #endregion lookup
 '@ 
 $tmpModel = @'
-[{"key":"text","type":0},{"key":"emailAddress","type":0}]
+[{"key":"output","type":0}]
 '@ 
 $tmpInput = @'
-[{"description":null,"translateDescription":false,"inputFieldType":1,"key":"emailPrefix","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"emailSuffixCurrent","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"emailSuffixNew","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"selectedUser","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"upnPrefix","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"upnSuffixCurrent","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"upnSuffixNew","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"upnEmailEqual","type":0,"options":0}]
+[{"description":null,"translateDescription":false,"inputFieldType":1,"key":"newUPN","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"newMail","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"blnMail","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"blnUPN","type":0,"options":0},{"description":null,"translateDescription":false,"inputFieldType":1,"key":"user","type":0,"options":0}]
 '@ 
 $dataSourceGuid_1 = [PSCustomObject]@{} 
 $dataSourceGuid_1_Name = @'
-AD-Beaufort-account-update-upn-email-validation
+ad-youforce-account-update-upn-email | AD-account-update-upn-email-validation
 '@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_1_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_1) 
-<# End: DataSource "AD-Beaufort-account-update-upn-email-validation" #>
-
-<# Begin: DataSource "AD-Beaufort-account-update-upn-email-lookup-user-generate-table" #>
-$tmpPsScript = @'
-#######################################################################
-# Template: CB HelloID SA Powershell data source
-# Name:     AD-Beaufort-account-update-upn-email-lookup-user-generate-table
-# Date:     24-10-2023
-#######################################################################
-
-# For basic information about powershell data sources see:
-# https://docs.helloid.com/en/service-automation/dynamic-forms/data-sources/powershell-data-sources/add,-edit,-or-remove-a-powershell-data-source.html#add-a-powershell-data-source
-
-# Service automation variables:
-# https://docs.helloid.com/en/service-automation/service-automation-variables/service-automation-variable-reference.html
-
-#region init
-
-$VerbosePreference = "SilentlyContinue"
-$InformationPreference = "Continue"
-$WarningPreference = "Continue"
-
-# global variables (Automation --> Variable libary):
-$searchOUs = $ADusersSearchOU
-
-# variables configured in form:
-$searchValue = $dataSource.searchUser
-$searchQuery = "*$searchValue*"
-
-#endregion init
-
-#region functions
-
-#endregion functions
-
-#region lookup
-try {
-    if ([String]::IsNullOrEmpty($searchValue) -eq $true) {
-        return
-    }
-    else {
-        Write-Verbose "SearchQuery: $searchQuery"
-        Write-Verbose "SearchBase: $searchOUs"
-        
-        $ous = $searchOUs | ConvertFrom-Json
-        $users = foreach ($item in $ous) {
-            Get-ADUser -Filter { Name -like $searchQuery -or userPrincipalName -like $searchQuery -or mail -like $searchQuery } -SearchBase $item.ou -properties displayName, UserPrincipalName, EmailAddress, EmployeeID, GivenName, SurName
-        }
-    
-        # Filter users without employeeID
-        $users = $users | Where-Object { $null -ne $_.employeeID }
-
-        $users = $users | Sort-Object -Property DisplayName
-
-        Write-Verbose "Successfully queried data. Result count: $(($users | Measure-Object).Count)"
-
-        if (($users | Measure-Object).Count -gt 0) {
-            foreach ($user in $users) {
-                # Split UserPrincipalName and EmailAddress for semperate editing
-                if (-not([string]::IsNullOrEmpty($user.UserPrincipalName))) {
-                    $userPrincipalNameSplit = $($user.UserPrincipalName).Split("@")
-                    $userPrincipalNamePrefix = $userPrincipalNameSplit[0]
-                    $userPrincipalNameSuffix = "@" + $userPrincipalNameSplit[1]
-                }
-                if (-not([string]::IsNullOrEmpty($user.EmailAddress))) {
-                    $emailAddressSplit = $($user.EmailAddress).Split("@")
-                    $emailAddressPrefix = $emailAddressSplit[0]
-                    $emailAddressSuffix = "@" + $emailAddressSplit[1]
-                }
-                $returnObject = @{
-                    displayName             = $user.DisplayName
-                    UserPrincipalName       = $user.UserPrincipalName
-                    EmployeeID              = $user.EmployeeID
-                    EmailAddress            = $user.EmailAddress
-                    EmailAddressPrefix      = $emailAddressPrefix
-                    EmailAddressSuffix      = $emailAddressSuffix
-                    UserPrincipalNamePrefix = $userPrincipalNamePrefix
-                    UserPrincipalNameSuffix = $userPrincipalNameSuffix
-                    GivenName               = $user.GivenName
-                    SurName                 = $user.SurName
-                    SID                     = $([string]$user.SID)
-                }    
-                Write-Output $returnObject      
-            }
-        }
-    }
-}
-catch {
-    $ex = $PSItem
-    Write-Verbose "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
-        
-    Write-Error "Error retrieving AD user [$userPrincipalName] basic attributes. Error: $($_.Exception.Message)"
-}
-#endregion lookup
-'@ 
-$tmpModel = @'
-[{"key":"GivenName","type":0},{"key":"EmailAddressPrefix","type":0},{"key":"UserPrincipalNameSuffix","type":0},{"key":"UserPrincipalNamePrefix","type":0},{"key":"UserPrincipalName","type":0},{"key":"SID","type":0},{"key":"displayName","type":0},{"key":"EmailAddress","type":0},{"key":"EmployeeID","type":0},{"key":"EmailAddressSuffix","type":0},{"key":"SurName","type":0}]
-'@ 
-$tmpInput = @'
-[{"description":null,"translateDescription":false,"inputFieldType":1,"key":"searchUser","type":0,"options":1}]
-'@ 
-$dataSourceGuid_0 = [PSCustomObject]@{} 
-$dataSourceGuid_0_Name = @'
-AD-Beaufort-account-update-upn-email-lookup-user-generate-table
-'@ 
-Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_0_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -returnObject ([Ref]$dataSourceGuid_0) 
-<# End: DataSource "AD-Beaufort-account-update-upn-email-lookup-user-generate-table" #>
+Invoke-HelloIDDatasource -DatasourceName $dataSourceGuid_1_Name -DatasourceType "4" -DatasourceInput $tmpInput -DatasourcePsScript $tmpPsScript -DatasourceModel $tmpModel -DataSourceRunInCloud "False" -returnObject ([Ref]$dataSourceGuid_1) 
+<# End: DataSource "ad-youforce-account-update-upn-email | AD-account-update-upn-email-validation" #>
 <# End: HelloID Data sources #>
 
-<# Begin: Dynamic Form "AD Beaufort Account - Update UPN - Email" #>
+<# Begin: Dynamic Form "AD Youforce Account - Update UPN - Email" #>
 $tmpSchema = @"
-[{"label":"Select user account","fields":[{"key":"searchfield","templateOptions":{"label":"Search","placeholder":"Username or Email"},"type":"input","summaryVisibility":"Hide element","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"gridUsers","templateOptions":{"label":"Select user account","required":true,"grid":{"columns":[{"headerName":"Employee ID","field":"EmployeeID"},{"headerName":"Display Name","field":"displayName"},{"headerName":"User Principal Name","field":"UserPrincipalName"},{"headerName":"Email Address","field":"EmailAddress"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"searchUser","otherFieldValue":{"otherFieldKey":"searchfield"}}]}},"useFilter":false},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Details","fields":[{"key":"formRowUPN","templateOptions":{},"fieldGroup":[{"key":"upnPrefix","templateOptions":{"label":"Current user principal name prefix","useDependOn":true,"dependOn":"gridUsers","dependOnProperty":"UserPrincipalNamePrefix","pattern":"^[a-zA-Z0-9_%+-]+(\\.[a-zA-Z0-9_%+-]+)*","required":true},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"upnSuffixCurrent","templateOptions":{"label":"Current user principal name suffix","useDependOn":true,"dependOn":"gridUsers","dependOnProperty":"UserPrincipalNameSuffix","readonly":true},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"upnSuffixNew","templateOptions":{"label":"New user principal name suffix","required":false,"useObjects":false,"useDataSource":false,"useFilter":false,"options":["@wdodelta.nl"]},"type":"dropdown","defaultValue":"@wdodelta.nl","summaryVisibility":"Show","textOrLabel":"text","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}],"type":"formrow","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"upnEmailEqual","templateOptions":{"label":"User principal name and email have the same value","useSwitch":true,"checkboxLabel":""},"type":"boolean","defaultValue":true,"summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"formRowEmail","templateOptions":{},"fieldGroup":[{"key":"emailPrefix","templateOptions":{"label":"Current email prefix","useDependOn":true,"dependOn":"gridUsers","dependOnProperty":"EmailAddressPrefix","readonly":false,"pattern":"^[a-zA-Z0-9_%+-]+(\\.[a-zA-Z0-9_%+-]+)*"},"validation":{"messages":{"pattern":""}},"hideExpression":"model[\"upnEmailEqual\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"emailSuffixCurrent","templateOptions":{"label":"Current email suffix","useDependOn":true,"dependOn":"gridUsers","dependOnProperty":"EmailAddressSuffix","readonly":true},"validation":{"messages":{"pattern":""}},"hideExpression":"model[\"upnEmailEqual\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"emailSuffixNew","templateOptions":{"label":"New email suffix","required":false,"useObjects":false,"useDataSource":false,"useFilter":false,"options":["@wdodelta.nl"]},"hideExpression":"model[\"upnEmailEqual\"]","type":"dropdown","defaultValue":"@wdodelta.nl","summaryVisibility":"Show","textOrLabel":"text","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}],"type":"formrow","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"validate","templateOptions":{"label":"Validation","readonly":true,"required":true,"pattern":"^Valid.*","useDataSource":true,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"emailPrefix","otherFieldValue":{"otherFieldKey":"emailPrefix"}},{"propertyName":"emailSuffixCurrent","otherFieldValue":{"otherFieldKey":"emailSuffixCurrent"}},{"propertyName":"emailSuffixNew","otherFieldValue":{"otherFieldKey":"emailSuffixNew"}},{"propertyName":"selectedUser","otherFieldValue":{"otherFieldKey":"gridUsers"}},{"propertyName":"upnPrefix","otherFieldValue":{"otherFieldKey":"upnPrefix"}},{"propertyName":"upnSuffixCurrent","otherFieldValue":{"otherFieldKey":"upnSuffixCurrent"}},{"propertyName":"upnSuffixNew","otherFieldValue":{"otherFieldKey":"upnSuffixNew"}},{"propertyName":"upnEmailEqual","otherFieldValue":{"otherFieldKey":"upnEmailEqual"}}]}},"displayField":"text","minLength":1},"validation":{"messages":{"pattern":"No valid value"}},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
+[{"label":"Select user account","fields":[{"key":"searchfield","templateOptions":{"label":"Search (wildcard search in Name, Display name, UserPrincipalName and Mail or use * to search all users)","placeholder":"Name, Display name, UserPrincipalName or Mail (use * to search all users)"},"type":"input","summaryVisibility":"Hide element","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"gridUsers","templateOptions":{"label":"Select user account","required":true,"grid":{"columns":[{"headerName":"Display Name","field":"DisplayName"},{"headerName":"UserPrincipalName","field":"UserPrincipalName"},{"headerName":"Mail","field":"mail"},{"headerName":"Object Guid","field":"ObjectGuid"}],"height":300,"rowSelection":"single"},"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_0","input":{"propertyInputs":[{"propertyName":"searchUser","otherFieldValue":{"otherFieldKey":"searchfield"}}]}},"useFilter":false,"allowCsvDownload":true},"type":"grid","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":true}]},{"label":"Details","fields":[{"key":"blnMail","templateOptions":{"label":"Update E-mail","useSwitch":true,"checkboxLabel":""},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"formRowMail","templateOptions":{},"fieldGroup":[{"key":"currentMail","templateOptions":{"label":"Current E-mail Address","useDataSource":false,"useDependOn":true,"dependOn":"gridUsers","dependOnProperty":"mail","readonly":true},"hideExpression":"!model[\"blnMail\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"newMail","templateOptions":{"label":"New E-mail Address","useDependOn":true,"dependOn":"gridUsers","dependOnProperty":"mail"},"hideExpression":"!model[\"blnMail\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}],"type":"formrow","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"blnUPN","templateOptions":{"label":"Update user principal name","useSwitch":true,"checkboxLabel":""},"type":"boolean","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"formRowUPN","templateOptions":{},"fieldGroup":[{"key":"currentUPN","templateOptions":{"label":"Current user principal name","useDependOn":true,"dependOn":"gridUsers","dependOnProperty":"UserPrincipalName","readonly":true},"hideExpression":"!model[\"blnUPN\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"newUPN","templateOptions":{"label":"New user principal name","useDependOn":true,"dependOn":"gridUsers","dependOnProperty":"UserPrincipalName"},"hideExpression":"!model[\"blnUPN\"]","type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}],"type":"formrow","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false},{"key":"Validation","templateOptions":{"label":"Validation","readonly":true,"useDataSource":true,"dataSourceConfig":{"dataSourceGuid":"$dataSourceGuid_1","input":{"propertyInputs":[{"propertyName":"newUPN","otherFieldValue":{"otherFieldKey":"newUPN"}},{"propertyName":"newMail","otherFieldValue":{"otherFieldKey":"newMail"}},{"propertyName":"blnMail","otherFieldValue":{"otherFieldKey":"blnMail"}},{"propertyName":"blnUPN","otherFieldValue":{"otherFieldKey":"blnUPN"}},{"propertyName":"user","otherFieldValue":{"otherFieldKey":"gridUsers"}}]}},"displayField":"output","pattern":"^Valid:[\\s\\S]*"},"validation":{"messages":{"pattern":"No valid value"}},"type":"input","summaryVisibility":"Show","requiresTemplateOptions":true,"requiresKey":true,"requiresDataSource":false}]}]
 "@ 
 
 $dynamicFormGuid = [PSCustomObject]@{} 
 $dynamicFormName = @'
-AD Beaufort Account - Update UPN - Email
+AD Youforce Account - Update UPN - Email
 '@ 
 Invoke-HelloIDDynamicForm -FormName $dynamicFormName -FormSchema $tmpSchema  -returnObject ([Ref]$dynamicFormGuid) 
 <# END: Dynamic Form #>
@@ -717,7 +616,7 @@ if(-not[String]::IsNullOrEmpty($delegatedFormAccessGroupNames)){
             $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
             $delegatedFormAccessGroupGuid = $response.groupGuid
             $delegatedFormAccessGroupGuids += $delegatedFormAccessGroupGuid
-            
+        
             Write-Information "HelloID (access)group '$group' successfully found$(if ($script:debugLogging -eq $true) { ": " + $delegatedFormAccessGroupGuid })"
         } catch {
             Write-Error "HelloID (access)group '$group', message: $_"
@@ -734,10 +633,10 @@ foreach($category in $delegatedFormCategories) {
         $uri = ($script:PortalBaseUrl +"api/v1/delegatedformcategories/$category")
         $response = Invoke-RestMethod -Method Get -Uri $uri -Headers $script:headers -ContentType "application/json" -Verbose:$false
         $response = $response | Where-Object {$_.name.en -eq $category}
-        
+    
         $tmpGuid = $response.delegatedFormCategoryGuid
         $delegatedFormCategoryGuids += $tmpGuid
-        
+    
         Write-Information "HelloID Delegated Form category '$category' successfully found$(if ($script:debugLogging -eq $true) { ": " + $tmpGuid })"
     } catch {
         Write-Warning "HelloID Delegated Form category '$category' not found"
@@ -760,10 +659,10 @@ $delegatedFormCategoryGuids = (ConvertTo-Json -InputObject $delegatedFormCategor
 <# Begin: Delegated Form #>
 $delegatedFormRef = [PSCustomObject]@{guid = $null; created = $null} 
 $delegatedFormName = @'
-AD Beaufort Account - Update UPN - Email
+AD Youforce Account - Update UPN - Email
 '@
 $tmpTask = @'
-{"name":"AD Beaufort Account - Update UPN - Email","script":"#######################################################################\r\n# Template: RHo HelloID SA Delegated form task\r\n# Name:     AD-account-update-upn-email\r\n# Date:     24-10-2023\r\n#######################################################################\r\n\r\n# For basic information about delegated form tasks see:\r\n# https://docs.helloid.com/en/service-automation/delegated-forms/delegated-form-powershell-scripts/add-a-powershell-script-to-a-delegated-form.html\r\n\r\n# Service automation variables:\r\n# https://docs.helloid.com/en/service-automation/service-automation-variables/service-automation-variable-reference.html\r\n$dryRun = $false\r\n#region init\r\n# Set TLS to accept TLS, TLS 1.1 and TLS 1.2\r\n[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12\r\n\r\n$VerbosePreference = \"SilentlyContinue\"\r\n$InformationPreference = \"Continue\"\r\n$WarningPreference = \"Continue\"\r\n\r\n# global variables (Automation --\u003e Variable libary):\r\n# $globalVar = $globalVarName\r\n\r\n# variables configured in form:\r\n$currentEmail =#$form.gridUsers.EmailAddress\r\n$currentUPN = $form.gridUsers.UserPrincipalName\r\n$emailPrefix =  $form.emailPrefix\r\n$emailSuffixCurrent = $form.emailSuffixCurrent\r\n$emailSuffixNew = $form.emailSuffixNew\r\n$upnPrefix = $form.upnPrefix\r\n$upnSuffixCurrent = $form.upnSuffixCurrent\r\n$upnSuffixNew = $form.upnSuffixNew\r\n$employeeID = $form.gridUsers.employeeID\r\n$displayName = $form.gridUsers.displayName\r\n$upnEmailEqual = $form.upnEmailEqual\r\n\r\n$correlationProperty = \"personCode\"\r\n$correlationValue = $employeeID\r\n\r\n#endregion init\r\n\r\n#region global\r\n\r\nif ([string]::IsNullOrEmpty($upnSuffixNew)) {\r\n    $newUPN = $upnPrefix + $upnSuffixCurrent\r\n}\r\nelse {\r\n    $newUPN = $upnPrefix + $upnSuffixNew\r\n}\r\n\r\nif ($upnEmailEqual -eq \"True\") {\r\n    $newEmail = $newUPN\r\n}\r\nelse {\r\n    if ([string]::IsNullOrEmpty($emailSuffixNew)) {\r\n        $newEmail = $emailPrefix + $emailSuffixCurrent\r\n    }\r\n    else {\r\n        $newEmail = $emailPrefix + $emailSuffixNew\r\n    }\r\n}\r\n\r\n#endregion global\r\n\r\n#region AD\r\n# Search user\r\ntry {\r\n    $properties = @(\u0027SID\u0027, \u0027ObjectGuid\u0027, \u0027UserPrincipalName\u0027, \u0027SamAccountName\u0027, \u0027Mail\u0027, \u0027ProxyAddresses\u0027, \u0027EmployeeId\u0027)\r\n    $adUser = Get-ADuser -Filter { UserPrincipalName -eq $currentUPN } -Properties $properties\r\n    Write-Information \"Found AD user [$currentUPN]\"\r\n    \r\n}\r\ncatch {\r\n    Write-Error \"Could not find AD user [$currentUPN]. Error: $($_.Exception.Message)\"    \r\n}\r\n\r\n# Set UPN\r\ntry {\r\n\r\n    Set-ADUser -Identity $adUser -userprincipalname $newUPN\r\n    \r\n    Write-Information \"Finished update attribute [userprincipalname] of AD user [$($adUser.SID)] from [$currentUPN] to [$newUPN]\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"ActiveDirectory\" # optional (free format text) \r\n        Message           = \"Successfully updated attribute [userprincipalname] of AD user [$($adUser.SID)] from [$currentUPN] to [$newUPN]\" # required (free format text) \r\n        IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $adUser.name # optional (free format text) \r\n        TargetIdentifier  = $([string]$adUser.SID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log    \r\n}\r\ncatch {\r\n    Write-Error \"Could not update attribute [userprincipalname] of AD user [$($adUser.SID)] from [$currentUPN] to [$newUPN]. Error: $($_.Exception.Message)\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"ActiveDirectory\" # optional (free format text) \r\n        Message           = \"Failed to update attribute [userprincipalname] of AD user [$($adUser.SID)] from [$currentUPN] to [$newUPN]\" # required (free format text) \r\n        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $adUser.name # optional (free format text) \r\n        TargetIdentifier  = $([string]$adUser.SID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log      \r\n}\r\n\r\n# Set EmailAdress and update proxyAddresses\r\ntry {\r\n    $proxyAddresses = @()\r\n    foreach ($address in $adUSer.ProxyAddresses) {\r\n        if ($address.StartsWith(\u0027SMTP:\u0027)) {\r\n            $address = $address -replace \u0027SMTP:\u0027, \u0027smtp:\u0027\r\n        }\r\n        if ($address -eq \"smtp:\" + $newEmail) {\r\n        }\r\n        else {\r\n            $proxyAddresses += $address\r\n        }\r\n    }\r\n\r\n    $newPrimary = \u0027SMTP:\u0027 + $newEmail\r\n    $proxyAddresses += $newPrimary\r\n\r\n    Set-ADUser -Identity $adUSer -emailaddress $newEmail -Replace @{proxyAddresses = $proxyAddresses }\r\n\r\n    Write-Information \"Finished update attribute [emailaddress] of AD user [$($adUser.SID)] from [$currentEmail] to [$newEmail]\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"ActiveDirectory\" # optional (free format text) \r\n        Message           = \"Successfully updated attribute [emailaddress] of AD user [$($adUser.SID)] from [$currentEmail] to [$newEmail]\" # required (free format text) \r\n        IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $adUser.name # optional (free format text) \r\n        TargetIdentifier  = $([string]$adUser.SID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log        \r\n}\r\ncatch {\r\n    Write-Error \"Could not update attribute [emailaddress] of AD user [$($adUser.SID)] from [$currentEmail] to [$newEmail]. Error: $($_.Exception.Message)\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"ActiveDirectory\" # optional (free format text) \r\n        Message           = \"Failed to update attribute [emailaddress] of AD user [$($adUser.SID)] from [$currentEmail] to [$newEmail]\" # required (free format text) \r\n        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $adUser.name # optional (free format text) \r\n        TargetIdentifier  = $([string]$adUser.SID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log     \r\n}\r\n#endregion AD\r\n\r\n#region Beaufort\r\nfunction Resolve-HTTPError {\r\n    [CmdletBinding()]\r\n    param (\r\n        [Parameter(Mandatory,\r\n            ValueFromPipeline\r\n        )]\r\n        [object]$ErrorObject\r\n    )\r\n    process {\r\n        $httpErrorObj = [PSCustomObject]@{\r\n            FullyQualifiedErrorId = $ErrorObject.FullyQualifiedErrorId\r\n            MyCommand             = $ErrorObject.InvocationInfo.MyCommand\r\n            RequestUri            = $ErrorObject.TargetObject.RequestUri\r\n            ScriptStackTrace      = $ErrorObject.ScriptStackTrace\r\n            ErrorMessage          = \u0027\u0027\r\n        }\r\n        if ($ErrorObject.Exception.GetType().FullName -eq \u0027Microsoft.PowerShell.Commands.HttpResponseException\u0027) {\r\n            $httpErrorObj.ErrorMessage = $ErrorObject.ErrorDetails.Message\r\n        }\r\n        elseif ($ErrorObject.Exception.GetType().FullName -eq \u0027System.Net.WebException\u0027) {\r\n            $httpErrorObj.ErrorMessage = [HelloID.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()\r\n        }\r\n        Write-Output $httpErrorObj\r\n    }\r\n}\r\nfunction Get-ErrorMessage {\r\n    [CmdletBinding()]\r\n    param (\r\n        [Parameter(Mandatory,\r\n            ValueFromPipeline\r\n        )]\r\n        [object]$ErrorObject\r\n    )\r\n    process {\r\n        $errorMessage = [PSCustomObject]@{\r\n            VerboseErrorMessage = $null\r\n            AuditErrorMessage   = $null\r\n        }\r\n\r\n        if ( $($ErrorObject.Exception.GetType().FullName -eq \u0027Microsoft.PowerShell.Commands.HttpResponseException\u0027) -or $($ErrorObject.Exception.GetType().FullName -eq \u0027System.Net.WebException\u0027)) {\r\n            $httpErrorObject = Resolve-HTTPError -Error $ErrorObject\r\n\r\n            $errorMessage.VerboseErrorMessage = $httpErrorObject.ErrorMessage\r\n\r\n            $errorMessage.AuditErrorMessage = $httpErrorObject.ErrorMessage\r\n        }\r\n\r\n        # If error message empty, fall back on $ex.Exception.Message\r\n        if ([String]::IsNullOrEmpty($errorMessage.VerboseErrorMessage)) {\r\n            $errorMessage.VerboseErrorMessage = $ErrorObject.Exception.Message\r\n        }\r\n        if ([String]::IsNullOrEmpty($errorMessage.AuditErrorMessage)) {\r\n            $errorMessage.AuditErrorMessage = $ErrorObject.Exception.Message\r\n        }\r\n\r\n        Write-Output $errorMessage\r\n    }\r\n}\r\n\r\nfunction New-RaetSession {\r\n    [CmdletBinding()]\r\n    param (\r\n        [Alias(\"Param1\")] \r\n        [parameter(Mandatory = $true)]  \r\n        [string]      \r\n        $ClientId,\r\n\r\n        [Alias(\"Param2\")] \r\n        [parameter(Mandatory = $true)]  \r\n        [string]\r\n        $ClientSecret,\r\n\r\n        [Alias(\"Param3\")] \r\n        [parameter(Mandatory = $false)]  \r\n        [string]\r\n        $TenantId\r\n    )\r\n\r\n    #Check if the current token is still valid\r\n    $accessTokenValid = Confirm-AccessTokenIsValid\r\n    if ($true -eq $accessTokenValid) {\r\n        return\r\n    }\r\n\r\n    try {\r\n        # Set TLS to accept TLS, TLS 1.1 and TLS 1.2\r\n        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12\r\n\r\n        $authorisationBody = @{\r\n            \u0027grant_type\u0027    = \"client_credentials\"\r\n            \u0027client_id\u0027     = $ClientId\r\n            \u0027client_secret\u0027 = $ClientSecret\r\n            \u0027tenant_id\u0027     = $TenantId\r\n        }        \r\n        $splatAccessTokenParams = @{\r\n            Uri             = $Script:AuthenticationUri\r\n            Headers         = @{\u0027Cache-Control\u0027 = \"no-cache\" }\r\n            Method          = \u0027POST\u0027\r\n            ContentType     = \"application/x-www-form-urlencoded\"\r\n            Body            = $authorisationBody\r\n            UseBasicParsing = $true\r\n        }\r\n\r\n        Write-Verbose \"Creating Access Token at uri \u0027$($splatAccessTokenParams.Uri)\u0027\"\r\n\r\n        $result = Invoke-RestMethod @splatAccessTokenParams -Verbose:$false\r\n        if ($null -eq $result.access_token) {\r\n            throw $result\r\n        }\r\n\r\n        $Script:expirationTimeAccessToken = (Get-Date).AddSeconds($result.expires_in)\r\n\r\n        $Script:AuthenticationHeaders = @{\r\n            \u0027Authorization\u0027 = \"Bearer $($result.access_token)\"\r\n            \u0027Accept\u0027        = \"application/json\"\r\n        }\r\n\r\n        Write-Verbose \"Successfully created Access Token at uri \u0027$($splatAccessTokenParams.Uri)\u0027\"\r\n    }\r\n    catch {\r\n        $ex = $PSItem\r\n        $errorMessage = Get-ErrorMessage -ErrorObject $ex\r\n\r\n        Write-Verbose \"Error at Line \u0027$($ex.InvocationInfo.ScriptLineNumber)\u0027: $($ex.InvocationInfo.Line). Error: $($($errorMessage.VerboseErrorMessage))\"\r\n\r\n        $auditLogs.Add([PSCustomObject]@{\r\n                # Action  = \"\" # Optional\r\n                Message = \"Error creating Access Token at uri \u0027\u0027$($splatAccessTokenParams.Uri)\u0027. Please check credentials. Error Message: $($errorMessage.AuditErrorMessage)\"\r\n                IsError = $true\r\n            })     \r\n    }\r\n}\r\n\r\n\r\n\r\n\r\nfunction Confirm-AccessTokenIsValid {\r\n    if ($null -ne $Script:expirationTimeAccessToken) {\r\n        if ((Get-Date) -le $Script:expirationTimeAccessToken) {\r\n            return $true\r\n        }\r\n    }\r\n    return $false\r\n}\r\n# Used to connect to Beaufort API endpoints\r\n$Script:AuthenticationUri = \"https://connect.visma.com/connect/token\"\r\n$Script:BaseUri = \"https://api.youforce.com\"\r\n\r\n$clientId = $BeaufortClientid\r\n$clientSecret = $BeaufortClientsecret\r\n$TenantId = $Beauforttenantid\r\n\r\n\r\n#Change mapping here\r\n$account = [PSCustomObject]@{\r\n    emailAddress = $newUPN\r\n    #phoneNumber  = $phoneFixed\r\n}\r\n\r\n$filterfieldid = \"Medewerker\"\r\n$filtervalue = $employeeID # Has to match the Beaufort value of the specified filter field ($filterfieldid)\r\n\r\n# Get current account and verify if the action should be either [updated and correlated] or just [correlated]\r\ntry {\r\n\r\n    $accessTokenValid = Confirm-AccessTokenIsValid\r\n\r\n    if ($true -ne $accessTokenValid) {\r\n        New-RaetSession -ClientId $clientId -ClientSecret $clientSecret -TenantId $tenantId\r\n    }\r\n\r\n    Write-Verbose \"Querying Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027\"\r\n\r\n    $splatWebRequest = @{\r\n        Uri             = \"$($Script:BaseUri)/iam/v1.0/persons/$($correlationValue)\"\r\n        Headers         = $Script:AuthenticationHeaders\r\n        Method          = \u0027GET\u0027\r\n        ContentType     = \"application/json\"\r\n        UseBasicParsing = $true\r\n    }\r\n    $currentAccount = $null\r\n    $currentAccount = Invoke-RestMethod @splatWebRequest -Verbose:$false\r\n\r\n\r\n    if ($null -ne $currentAccount.id) {\r\n        Write-Verbose \"Successfully found Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027\"\r\n    } \r\n    else {\r\n        throw \"No employee found in Raet Beaufort with $($correlationProperty) \u0027$($correlationValue)\u0027\"\r\n    }\r\n\r\n\r\n    # Get value of current Business Email Address\r\n    if ($null -ne $currentAccount.emailAddresses) {\r\n        $businessEmailAddress = $currentAccount.emailAddresses | Where-Object { $_.type -eq \"Business\" }\r\n        $businessEmailAddressValue = $businessEmailAddress.address\r\n    }\r\n\r\n    # Retrieve current account data for properties to be updated\r\n    $previousAccount = [PSCustomObject]@{\r\n        \u0027emailAddress\u0027 = $businessEmailAddressValue\r\n        #\u0027phoneNumber\u0027  = $businessPhoneNumberValue\r\n    }\r\n    \r\n    $splatCompareProperties = @{\r\n        ReferenceObject  = @($previousAccount.PSObject.Properties)\r\n        DifferenceObject = @($account.PSObject.Properties)\r\n    }\r\n    $propertiesChanged = (Compare-Object @splatCompareProperties -PassThru).Where( { $_.SideIndicator -eq \u0027=\u003e\u0027 })\r\n    \r\n    if ($propertiesChanged) {\r\n        Write-Verbose \"Account property(s) required to update: [$($propertiesChanged.name -join \",\")]\"\r\n    \r\n        foreach ($changedProperty in $propertiesChanged) {\r\n            Write-Verbose \"Updating field $($changedProperty.name) \u0027$($previousAccount.($changedProperty.name))\u0027 with new value \u0027$($account.($changedProperty.name))\u0027\"\r\n        }\r\n\r\n        $updateAction = \u0027Update\u0027\r\n    }\r\n    else {\r\n        $updateAction = \u0027NoChanges\u0027\r\n    }\r\n\r\n    switch ($updateAction) {\r\n        \u0027Update\u0027 {\r\n\r\n            try {\r\n                $body = ($account | ConvertTo-Json -Depth 10)\r\n                $splatWebRequest = @{\r\n                    Uri             = \"$($Script:BaseUri)/iam/v1.0/ContactDetails/$($correlationValue)\"\r\n                    Headers         = $Script:AuthenticationHeaders\r\n                    Method          = \u0027POST\u0027\r\n                    Body            = ([System.Text.Encoding]::UTF8.GetBytes($body))\r\n                    ContentType     = \"application/json;charset=utf-8\"\r\n                    UseBasicParsing = $true\r\n                }\r\n\r\n                Write-Verbose \"Updating Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027. Account object: $($account | ConvertTo-Json -Depth 10)\"\r\n                                \r\n                if (-not($dryRun -eq $true)) {\r\n                    \r\n                    $updatedAccount = Invoke-RestMethod @splatWebRequest -Verbose:$false\r\n\r\n                    $auditLogs.Add([PSCustomObject]@{\r\n                            # Action  = \"\" # Optional\r\n                            Message = \"Successfully updated Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027\"\r\n                            IsError = $false\r\n                        })\r\n                }\r\n                else {\r\n                    Write-Warning \"DryRun: Would update Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027. Account object: $($account | ConvertTo-Json -Depth 10)\"\r\n                }\r\n\r\n                break\r\n            }\r\n            catch {\r\n                $ex = $PSItem\r\n                $errorMessage = Get-ErrorMessage -ErrorObject $ex\r\n\r\n                Write-Verbose \"Error at Line \u0027$($ex.InvocationInfo.ScriptLineNumber)\u0027: $($ex.InvocationInfo.Line). Error: $($($errorMessage.VerboseErrorMessage))\"\r\n                    \r\n                $Log = @{\r\n                    Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n                    System            = \"Beaufort Employee\" # optional (free format text) \r\n                    Message           = \"Successfully updated attribute [EmAd] of Beaufort emplyee [$employeeID] from [$($currentAccount.Email_werk)] to [$newEmail]\" # required (free format text) \r\n                    IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n                    TargetDisplayName = $displayName # optional (free format text) \r\n                    TargetIdentifier  = $([string]$employeeID) # optional (free format text) \r\n                }\r\n            }\r\n        }\r\n        \u0027NoChanges\u0027 {\r\n\r\n            Write-Verbose \"No changes to Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027\"\r\n        \r\n            if (-not($dryRun -eq $true)) {\r\n\r\n                $Log = @{\r\n                    Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n                    System            = \"Beaufort Employee\" # optional (free format text) \r\n                    Message           = \"Skipped update attribute [EmAd] of Beaufort employee [$employeeID] to [$newEmail]: No Beaufort employee found with $($filterfieldid) $($filtervalue)\" # required (free format text) \r\n                    IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n                    TargetDisplayName = $displayName # optional (free format text) \r\n                    TargetIdentifier  = $([string]$employeeID) # optional (free format text)\r\n                }\r\n            }\r\n            else {\r\n                Write-Warning \"DryRun: No changes to Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027\"\r\n            }                  \r\n\r\n            break\r\n        }\r\n    }\r\n}\r\n\r\ncatch {\r\n\r\n    $ex = $PSItem\r\n    if ( $($ex.Exception.GetType().FullName -eq \u0027Microsoft.PowerShell.Commands.HttpResponseException\u0027) -or $($ex.Exception.GetType().FullName -eq \u0027System.Net.WebException\u0027)) {\r\n        $errorObject = Resolve-HTTPError -Error $ex\r\n\r\n        $verboseErrorMessage = $errorObject.ErrorMessage\r\n\r\n        $auditErrorMessage = Resolve-BeaufortErrorMessage -ErrorObject $errorObject.ErrorMessage\r\n    }\r\n\r\n    # If error message empty, fall back on $ex.Exception.Message\r\n    if ([String]::IsNullOrEmpty($verboseErrorMessage)) {\r\n        $verboseErrorMessage = $ex.Exception.Message\r\n    }\r\n    if ([String]::IsNullOrEmpty($auditErrorMessage)) {\r\n        $auditErrorMessage = $ex.Exception.Message\r\n    }\r\n\r\n    Write-Verbose \"Error at Line \u0027$($ex.InvocationInfo.ScriptLineNumber)\u0027: $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)\"\r\n\r\n    if ($auditErrorMessage -Like \"No Beaufort employee found with $($filterfieldid) $($filtervalue)\") {\r\n        Write-Error \"Failed to update attribute [Mail] of Beaufort emplyee [$employeeID] to [$businessEmailAddressValue]: No Beaufort employee found with $($filterfieldid) $($filtervalue)\"\r\n        Write-Information \"Failed to update attribute [Mail] of Beaufort emplyee [$employeeID] to [$businessEmailAddressValue]: No Beaufort employee found with $($filterfieldid) $($filtervalue)\"\r\n        $Log = @{\r\n            Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n            System            = \"Beaufort Employee\" # optional (free format text) \r\n            Message           = \"Failed to update attribute [Mail] of Beaufort employee [$employeeId] to [$businessEmailAddressValue]: No Beaufort employee found with $($filterfieldid) $($filtervalue)\" # required (free format text) \r\n            IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $displayName # optional (free format text) \r\n            TargetIdentifier  = $([string]$employeeID) # optional (free format text) \r\n        }\r\n        #send result back  \r\n        Write-Information -Tags \"Audit\" -MessageData $log \r\n    }\r\n    else {\r\n        Write-Error \"Failed to update attribute [Mail] of Beaufort emplyee [$employeeID] to [$businessEmailAddressValue]: Error querying Beaufort employee found with $($filterfieldid) $($filtervalue). Error Message: $auditErrorMessage\"\r\n        Write-Information \"Failed to update attribute [Mail] of Beaufort emplyee [$employeeID] to [$businessEmailAddressValue]: Error querying Beaufort employee found with $($filterfieldid) $($filtervalue). Error Message: $auditErrorMessage\"\r\n        $Log = @{\r\n            Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n            System            = \"Beaufort Employee\" # optional (free format text) \r\n            Message           = \"Failed to update attribute [Mail] of Beaufort employee [$employeeId] to $businessEmailAddressValue]: Error querying Beaufort employee found with $($filterfieldid) $($filtervalue). Error Message: $auditErrorMessage\" # required (free format text) \r\n            IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $displayName # optional (free format text) \r\n            TargetIdentifier  = $([string]$employeeID) # optional (free format text) \r\n        }\r\n        #send result back  \r\n        Write-Information -Tags \"Audit\" -MessageData $log  \r\n    }\r\n}\r\n\r\n# Update Beaufort Employee\r\ntry {\r\n    Write-Information \"Start updating Beaufort employee [$($currentAccount.Medewerker)]\"\r\n    switch ($updateAction) {\r\n        \u0027Update\u0027 {\r\n            try {\r\n                $body = ($account | ConvertTo-Json -Depth 10)\r\n                $splatWebRequest = @{\r\n                    Uri             = \"$($Script:BaseUri)/iam/v1.0/ContactDetails/$($correlationValue)\"\r\n                    Headers         = $Script:AuthenticationHeaders\r\n                    Method          = \u0027POST\u0027\r\n                    Body            = ([System.Text.Encoding]::UTF8.GetBytes($body))\r\n                    ContentType     = \"application/json;charset=utf-8\"\r\n                    UseBasicParsing = $true\r\n                }\r\n\r\n                Write-Verbose \"Updating Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027. Account object: $($account | ConvertTo-Json -Depth 10)\"\r\n                                \r\n                if (-not($dryRun -eq $true)) {\r\n                    \r\n                    $updatedAccount = Invoke-RestMethod @splatWebRequest -Verbose:$false\r\n\r\n                    $Log = @{\r\n                        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n                        System            = \"Beaufort Employee\" # optional (free format text) \r\n                        Message           = \"Successfully updated attribute [EmAd] of Beaufort emplyee [$employeeID] from [$($currentAccount.Email_werk)] to [$newEmail]\" # required (free format text) \r\n                        IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n                        TargetDisplayName = $displayName # optional (free format text) \r\n                        TargetIdentifier  = $([string]$employeeID) # optional (free format text) \r\n                    }\r\n                }\r\n                else {\r\n                    Write-Warning \"DryRun: Would update Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027. Account object: $($account | ConvertTo-Json -Depth 10)\"\r\n                }\r\n\r\n                break\r\n            }\r\n            catch {\r\n                $ex = $PSItem\r\n                $errorMessage = Get-ErrorMessage -ErrorObject $ex\r\n                        \r\n                Write-Verbose \"Error at Line \u0027$($ex.InvocationInfo.ScriptLineNumber)\u0027: $($ex.InvocationInfo.Line). Error: $($($errorMessage.VerboseErrorMessage))\"\r\n                    \r\n                $auditLogs.Add([PSCustomObject]@{\r\n                        # Action  = \"\" # Optional\r\n                        Message = \"Error updating Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027. Error Message: $($errorMessage.AuditErrorMessage) Account object: $($account | ConvertTo-Json -Depth 10)\"\r\n                        IsError = $true\r\n                    })\r\n            }\r\n        }\r\n        \u0027NoChanges\u0027 {\r\n            Write-Verbose \"No changes to Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027\"\r\n        \r\n            if (-not($dryRun -eq $true)) {\r\n                $Log = @{\r\n                    Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n                    System            = \"Beaufort Employee\" # optional (free format text) \r\n                    Message           = \"Successfully checked attribute [EmAd] of Beaufort emplyee [$employeeID] from [$($currentAccount.Email_werk)] to [$newEmail], no changes needed\" # required (free format text) \r\n                    IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n                    TargetDisplayName = $displayName # optional (free format text) \r\n                    TargetIdentifier  = $([string]$employeeID) # optional (free format text) \r\n                }\r\n            }\r\n            else {\r\n                Write-Warning \"DryRun: No changes to Raet Beaufort employee with $($correlationProperty) \u0027$($correlationValue)\u0027\"\r\n            }                  \r\n\r\n            break\r\n        }\r\n    }\r\n\r\n    # Set aRef object for use in futher actions\r\n    $aRef = $currentAccount.personCode\r\n\r\n    # Define ExportData with account fields and correlation property \r\n    $exportData = $account.PsObject.Copy()\r\n    $exportData | Add-Member -MemberType NoteProperty -Name $correlationProperty -Value $correlationValue -Force\r\n\r\n    break\r\n}\r\ncatch {\r\n    $ex = $PSItem\r\n    if ( $($ex.Exception.GetType().FullName -eq \u0027Microsoft.PowerShell.Commands.HttpResponseException\u0027) -or $($ex.Exception.GetType().FullName -eq \u0027System.Net.WebException\u0027)) {\r\n        $errorObject = Resolve-HTTPError -Error $ex\r\n\r\n        $verboseErrorMessage = $errorObject.ErrorMessage\r\n\r\n        $auditErrorMessage = Resolve-BeaufortErrorMessage -ErrorObject $errorObject.ErrorMessage\r\n    }\r\n\r\n    # If error message empty, fall back on $ex.Exception.Message\r\n    if ([String]::IsNullOrEmpty($verboseErrorMessage)) {\r\n        $verboseErrorMessage = $ex.Exception.Message\r\n    }\r\n    if ([String]::IsNullOrEmpty($auditErrorMessage)) {\r\n        $auditErrorMessage = $ex.Exception.Message\r\n    }\r\n\r\n    $ex = $PSItem\r\n    $verboseErrorMessage = $ex\r\n    \r\n    Write-Verbose \"Error at Line \u0027$($ex.InvocationInfo.ScriptLineNumber)\u0027: $($ex.InvocationInfo.Line). Error: $($verboseErrorMessage)\"\r\n    Write-Error \"Error updating Beaufort employee $($currentAccount.Medewerker). Error Message: $auditErrorMessage\"\r\n    Write-Information \"Error updating Beaufort employee $($currentAccount.Medewerker). Error Message: $auditErrorMessage\"\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"Beaufort Employee\" # optional (free format text) \r\n        Message           = \"Error updating Beaufort employee $($currentAccount.Medewerker). Error Message: $auditErrorMessage\" # required (free format text) \r\n        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $displayName # optional (free format text) \r\n        TargetIdentifier  = $([string]$employeeID) # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log \r\n}\r\n#endregion Beaufort","runInCloud":false}
+{"name":"AD Youforce Account - Update UPN - Email","script":"# variables configured in form:\r\n$user = $form.gridUsers\r\n$blnmail = [System.Convert]::ToBoolean($form.blnMail)\r\n$blnupn = [System.Convert]::ToBoolean($form.blnUPN)\r\n$blnidentity = $false\r\n$newMailAddress = $form.newMail\r\n$newUserPrincipalName = $form.newUPN\r\n$employeeID = $user.employeeID\r\n\r\n# global variables (Automation --> Variable library):\r\n# Outcommented as these are set from Global Variables\r\n# $YouforceTenantId = ''\r\n# $YouforceClientId = ''\r\n# $YouforceClientSecret = ''\r\n\r\n$YouforceAuthenticationUri = \"https://connect.visma.com/connect/token\"\r\n$YouforceBaseUri = \"https://api.youforce.com\"\r\n\r\n# Set debug logging\r\n$VerbosePreference = \"SilentlyContinue\"\r\n$InformationPreference = \"Continue\"\r\n$WarningPreference = \"Continue\"\r\n\r\n# Set TLS to accept TLS, TLS 1.1 and TLS 1.2\r\n[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls12\r\n\r\n#region global functions\r\nfunction Resolve-YouforceError {\r\n    [CmdletBinding()]\r\n    param (\r\n        [Parameter(Mandatory)]\r\n        [object]\r\n        $ErrorObject\r\n    )\r\n    process {\r\n        $httpErrorObj = [PSCustomObject]@{\r\n            ScriptLineNumber = $ErrorObject.InvocationInfo.ScriptLineNumber\r\n            Line             = $ErrorObject.InvocationInfo.Line\r\n            ErrorDetails     = $ErrorObject.Exception.Message\r\n            FriendlyMessage  = $ErrorObject.Exception.Message\r\n        }\r\n        if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {\r\n            $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message\r\n        }\r\n        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {\r\n            if ($null -ne $ErrorObject.Exception.Response) {\r\n                $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()\r\n                if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {\r\n                    $httpErrorObj.ErrorDetails = $streamReaderResponse\r\n                }\r\n            }\r\n        }\r\n        Write-Output $httpErrorObj\r\n    }\r\n}\r\n#endregion global functionsResolve-HTTPError {\r\n\r\ntry {\r\n    $actionMessage = \"updating AD attributes for user [$($user.userPrincipalName)] with objectguid [$($user.ObjectGuid)]\"\r\n\r\n    $proxyAddresses = @()\r\n    foreach ($address in $user.ProxyAddresses) {\r\n        if ($address.StartsWith('SMTP:')) {\r\n            $address = $address -replace 'SMTP:', 'smtp:'\r\n        }\r\n        if ($address -eq \"smtp:\" + $newMailAddress) {\r\n        }\r\n        else {\r\n            $proxyAddresses += $address\r\n        }\r\n    }\r\n\r\n    $newPrimary = 'SMTP:' + $newMailAddress\r\n    $proxyAddresses += $newPrimary\r\n\r\n    if ($blnupn -eq $true) {\r\n        Set-ADUser -Identity $user.ObjectGuid -UserPrincipalName $newUserPrincipalName \r\n\r\n        $Log = @{\r\n            Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n            System            = \"ActiveDirectory\" # optional (free format text) \r\n            Message           = \"Successfully updated AD user [$($user.userPrincipalName)] attributes [userPrincipalName] from [$($user.userPrincipalName)] to [$newUserPrincipalName]\" # required (free format text) \r\n            IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $user.userPrincipalName # optional (free format text) \r\n            TargetIdentifier  = $user.ObjectGuid # optional (free format text) \r\n        }\r\n        #send result back  \r\n        Write-Information -Tags \"Audit\" -MessageData $log     \r\n    }\r\n\r\n    if ($blnmail -eq $true) {\r\n        Set-ADUser -Identity $user.ObjectGuid -emailaddress $newMailAddress -Replace @{proxyAddresses = $proxyAddresses }\r\n\r\n        $Log = @{\r\n            Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n            System            = \"ActiveDirectory\" # optional (free format text) \r\n            Message           = \"Successfully updated AD user [$($user.mail)] attributes [mail] from [$($user.mail)] to [$newMailAddress]\" # required (free format text) \r\n            IsError           = $false # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $user.userPrincipalName # optional (free format text) \r\n            TargetIdentifier  = $user.ObjectGuid # optional (free format text) \r\n        }\r\n        #send result back  \r\n        Write-Information -Tags \"Audit\" -MessageData $log     \r\n    }\r\n}\r\ncatch {\r\n    $ex = $PSItem\r\n    $auditMessage = \"Error $($actionMessage). Error: $($ex.Exception.Message)\"\r\n    $warningMessage = \"Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)\"    \r\n\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n        System            = \"ActiveDirectory\" # optional (free format text) \r\n        Message           = \"Error $($actionMessage). Error Message: $auditMessage\" # required (free format text) \r\n        IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n        TargetDisplayName = $user.userPrincipalName # optional (free format text) \r\n        TargetIdentifier  = $user.ObjectGuid # optional (free format text) \r\n    }\r\n    #send result back  \r\n    Write-Information -Tags \"Audit\" -MessageData $log      \r\n    Write-Warning $warningMessage   \r\n    Write-Error $auditMessage\r\n}\r\n#endregion AD\r\n\r\n#region Youforce\r\nif (-not([string]::IsNullOrEmpty($employeeID))) {\r\n    try {\r\n        $actionMessage = \"creating new session for Youforce API\"\r\n        $authorizationBody = @{\r\n            'grant_type'    = \"client_credentials\"\r\n            'client_id'     = $YouforceClientId\r\n            'client_secret' = $YouforceClientSecret\r\n            'tenant_id'     = $YouforceTenantId\r\n        }\r\n\r\n        $splatAccessTokenParams = @{\r\n            Uri             = $YouforceAuthenticationUri\r\n            Headers         = @{'Cache-Control' = \"no-cache\" }\r\n            Method          = 'POST'\r\n            ContentType     = \"application/x-www-form-urlencoded\"\r\n            Body            = $authorizationBody\r\n            UseBasicParsing = $true\r\n        }\r\n        Write-Verbose \"Creating Access Token at uri '$($splatAccessTokenParams.Uri)'\"\r\n\r\n        $result = Invoke-RestMethod @splatAccessTokenParams -Verbose:$false\r\n        if ($null -eq $result.access_token) {\r\n            throw $result\r\n        }\r\n\r\n        $headers = @{\r\n            'Authorization' = \"Bearer $($result.access_token)\"\r\n            'Accept'        = \"application/json\"\r\n        }\r\n        Write-Verbose \"Successfully created Access Token at uri '$($splatAccessTokenParams.Uri)'\"\r\n\r\n        $actionMessage = \"retrieving correlated account from Youforce API for person [$employeeID]\"\r\n        $splatWebRequest = @{\r\n            Uri             = \"$YouforceBaseUri/iam/v1.0/persons/$($employeeID)\"\r\n            Headers         = $headers\r\n            Method          = 'GET'\r\n            ContentType     = \"application/json\"\r\n            UseBasicParsing = $true\r\n        }\r\n        $correlatedAccount = Invoke-RestMethod @splatWebRequest\r\n\r\n        if ($null -eq $correlatedAccount.id) {\r\n            throw 'No employee found in Youforce'\r\n        }\r\n\r\n        $actionMessage = \"checking and updating business email attribute in Youforce for person [$($user.EmployeeID)]\"\r\n        if ($null -ne $correlatedAccount.emailAddresses) {\r\n            $businessEmailAddress = $correlatedAccount.emailAddresses | Where-Object { $_.type -eq \"Business\" }\r\n            $businessEmailAddressOld = $businessEmailAddress.address\r\n            if ([string]::IsNullOrEmpty($businessEmailAddressOld)) {\r\n                $businessEmailAddressOld = ''\r\n            }\r\n        }\r\n        else {\r\n            $businessEmailAddressOld = ''\r\n        }\r\n\r\n        if ($businessEmailAddressOld -ne $newMailAddress) {\r\n            $body = [PSCustomObject]@{\r\n                'emailAddress' = $newMailAddress\r\n            }\r\n            $body = $body | ConvertTo-Json -Depth 10\r\n            $splatWebRequest = @{\r\n                Uri             = \"$youforceBaseUrl/iam/v1.0/ContactDetails/$($correlatedAccount.personCode)\"\r\n                Headers         = $headers\r\n                Method          = 'POST'\r\n                Body            = ([System.Text.Encoding]::UTF8.GetBytes($body))\r\n                ContentType     = \"application/json;charset=utf-8\"\r\n                UseBasicParsing = $true\r\n            }\r\n            $null = Invoke-RestMethod @splatWebRequest\r\n\r\n            $Log = @{\r\n                Action            = \"UpdateAccount\"\r\n                System            = \"Youforce\"\r\n                Message           = \"Successfully updated Youforce personCode [$($correlatedAccount.personCode)] attributes [businessmail] from [$businessEmailAddressOld] to [$newMailAddress]\"\r\n                IsError           = $false\r\n                TargetDisplayName = $user.userPrincipalName # optional (free format text) \r\n                TargetIdentifier  = $correlatedAccount.personCode # optional (free format text) \r\n            }\r\n            Write-Information -Tags \"Audit\" -MessageData $log\r\n        }\r\n        else {\r\n            $Log = @{\r\n                Action            = \"UpdateAccount\"\r\n                System            = \"Youforce\"\r\n                Message           = \"Successfully checked Youforce person [$($correlatedAccount.personCode)] attributes [businessmail] [$businessEmailAddressOld], no changes needed\"\r\n                IsError           = $false\r\n                TargetDisplayName = $user.userPrincipalName # optional (free format text) \r\n                TargetIdentifier  = $correlatedAccount.personCode # optional (free format text) \r\n            }\r\n            Write-Information -Tags \"Audit\" -MessageData $log\r\n        }\r\n    }\r\n    catch {\r\n        $ex = $PSItem\r\n        if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or\r\n            $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {\r\n            $errorObj = Resolve-YouforceError -ErrorObject $ex\r\n            $warningMessage = \"Error at Line '$($errorObj.ScriptLineNumber)': $($errorObj.Line). Error: $($errorObj.ErrorDetails)\"\r\n            $auditMessage = \"Error $($actionMessage). Error: $($errorObj.FriendlyMessage)\"\r\n        }\r\n        else {\r\n            $warningMessage = \"Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)\"\r\n            $auditMessage = \"Error $($actionMessage). Error: $($ex.Exception.Message)\"\r\n        }\r\n        $log = @{\r\n            Action            = \"UpdateAccount\" # optional. ENUM (undefined = default) \r\n            System            = \"Youforce\" # optional (free format text) \r\n            Message           = $auditMessage # required (free format text) \r\n            IsError           = $true # optional. Elastic reporting purposes only. (default = $false. $true = Executed action returned an error) \r\n            TargetDisplayName = $user.userPrincipalName # optional (free format text) \r\n            TargetIdentifier  = $correlatedAccount.personCode # optional (free format text) \r\n        }\r\n        Write-Information -Tags \"Audit\" -MessageData $log\r\n        Write-Warning $warningMessage\r\n        Write-Error $auditMessage\r\n    }\r\n}\r\nelse {\r\n    $Log = @{\r\n        Action            = \"UpdateAccount\"\r\n        System            = \"Youforce\"\r\n        Message           = \"Skipped update attributes [businessmail] of Youforce person [$($employeeID)]: employeeID is empty\"\r\n        IsError           = $false\r\n        TargetDisplayName = $user.displayName\r\n        TargetIdentifier  = $user.ObjectGuid\r\n    }\r\n    Write-Information -Tags \"Audit\" -MessageData $log\r\n}\r\n#endregion Youforce","runInCloud":false}
 '@ 
 
 Invoke-HelloIDDelegatedForm -DelegatedFormName $delegatedFormName -DynamicFormGuid $dynamicFormGuid -AccessGroups $delegatedFormAccessGroupGuids -Categories $delegatedFormCategoryGuids -UseFaIcon "True" -FaIcon "fa fa-envelope" -task $tmpTask -returnObject ([Ref]$delegatedFormRef) 
