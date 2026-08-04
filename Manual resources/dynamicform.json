@@ -221,7 +221,7 @@
             }
           },
           "displayField": "output",
-          "pattern": "^Valid:[\\s\\S]*"
+          "pattern": "^Valid[\\s\\S]*"
         },
         "validation": {
           "messages": {
