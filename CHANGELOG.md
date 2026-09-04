@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com), and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [2.0.1] - 2026-08-04
+
+### Fixed
+
+- Validation regex was incorrect [#2](https://github.com/Tools4everBV/HelloID-Conn-SA-Full-AD-Youforce-Update-UPN-Email/issues/2)
+- ProxyAddresses are not included in the form output [#3](https://github.com/Tools4everBV/HelloID-Conn-SA-Full-AD-Youforce-Update-UPN-Email/issues/3)
+
 ## [2.0.0] - 2026-04-17
 
 This release introduces improvements and updates to the AD and Youforce Account Update UPN and Email connector.

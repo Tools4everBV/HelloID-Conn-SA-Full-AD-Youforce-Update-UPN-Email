@@ -13,14 +13,14 @@ else {
 $searchOUs = $AdUsersSearchOu
 
 # Fixed values
-# Fixed values
 $propertiesToSelect = @(                    
     "SamAccountName",
     "DisplayName",
     "UserPrincipalName",
     "mail",
     "ObjectGuid",
-    "EmployeeID"
+    "EmployeeID",
+    "ProxyAddresses"
 ) # Properties to select from Microsoft AD, comma separated
 
 # Set debug logging
