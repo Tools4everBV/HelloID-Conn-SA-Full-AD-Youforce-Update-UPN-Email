@@ -187,7 +187,7 @@ if (-not([string]::IsNullOrEmpty($employeeID))) {
             }
             $body = $body | ConvertTo-Json -Depth 10
             $splatWebRequest = @{
-                Uri             = "$youforceBaseUrl/iam/v1.0/ContactDetails/$($correlatedAccount.personCode)"
+                Uri             = "$YouforceBaseUri/iam/v1.0/ContactDetails/$($correlatedAccount.personCode)"
                 Headers         = $headers
                 Method          = 'POST'
                 Body            = ([System.Text.Encoding]::UTF8.GetBytes($body))
