@@ -1,7 +1,7 @@
 # variables configured in form:
 $user = $form.gridUsers
-$blnmail = [System.Convert]::ToBoolean($form.blnMail)
-$blnupn = [System.Convert]::ToBoolean($form.blnUPN)
+$blnmail = if ([string]::IsNullOrWhiteSpace($form.blnMail)) { $false } else { [System.Convert]::ToBoolean($form.blnMail) }
+$blnupn = if ([string]::IsNullOrWhiteSpace($form.blnUPN)) { $false } else { [System.Convert]::ToBoolean($form.blnUPN) }
 $blnidentity = $false
 $newMailAddress = $form.newMail
 $newUserPrincipalName = $form.newUPN
